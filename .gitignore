@@ -1,1 +1,3 @@
 data/grimp/*.h5
+data/STEAD/*.h5
+data/STEAD/*.csv
