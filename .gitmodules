@@ -1,3 +1,6 @@
 [submodule "external/seisbench"]
 	path = external/seisbench
 	url = https://github.com/Herbsi/seisbench
+[submodule "external/swa_gaussian"]
+	path = external/swa_gaussian
+	url = https://github.com/Herbsi/swa_gaussian
