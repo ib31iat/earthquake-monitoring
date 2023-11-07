@@ -1,3 +1,4 @@
+gpytorch
 jupyter
 matplotlib
 numpy
@@ -5,4 +6,4 @@ obspy
 pandas
 seisbench==0.1.dev688+g5417aca
 torch
-torch
+torchvision
