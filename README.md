@@ -1,6 +1,6 @@
 # EarthEarthquake Monitoring - Python Setup
 - Python version: 3.11.5
-- Install packages: `pip install -r requirements.txt`
+- Install packages: `pip install -r requirements.txt` (first install seisbench from the submodule)
 
 ## seisbench
 Since we adapt EQTransformer to only use one channel, the `seisbench` project is added as a submodule.  To install the *local* version of `seisbench` as opposed to the one on `pypi`, run the following from the project root with your virtual env active:
