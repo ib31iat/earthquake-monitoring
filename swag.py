@@ -6,9 +6,12 @@ import sys
 import time
 
 import numpy as np
-import seisbench.generate as sbg
 import tabulate
 import torch
+
+import torch.nn.functional as F
+
+import seisbench.generate as sbg
 from seisbench.data import WaveformDataset
 from seisbench.models import EQTransformer
 from seisbench.util import worker_seeding
@@ -39,7 +42,7 @@ parser.add_argument(
     type=str,
     default=None,
     required=True,
-    help="path to dataset location (default: None)"
+    help="path to dataset location (default: None)",
 )
 
 parser.add_argument(
@@ -68,7 +71,7 @@ parser.add_argument(
     "--resume",
     type=str,
     default=None,
-    help="checkpoint to resume training from (default: None)"
+    help="checkpoint to resume training from (default: None)",
 )
 
 parser.add_argument(
@@ -107,17 +110,10 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--wd",
-    type=float,
-    default=1e-4,
-    help="weight decay (default: 1e-4)"
+    "--wd", type=float, default=1e-4, help="weight decay (default: 1e-4)"
 )
 
-parser.add_argument(
-    "--swa",
-    action="store_true",
-    help="swa usage flag (default: off)"
-)
+parser.add_argument("--swa", action="store_true", help="swa usage flag (default: off)")
 
 parser.add_argument(
     "--swa_start",
@@ -127,11 +123,7 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--swa_lr",
-    type=float,
-    default=0.02,
-    metavar="LR",
-    help="SWA LR (default: 0.02)"
+    "--swa_lr", type=float, default=0.02, metavar="LR", help="SWA LR (default: 0.02)"
 )
 
 parser.add_argument(
@@ -168,12 +160,7 @@ parser.add_argument(
     help="loss to use for training model (default: Cross-entropy)",
 )
 
-parser.add_argument(
-    "--seed",
-    type=int,
-    default=42,
-    help="random seed (default: 42)"
-)
+parser.add_argument("--seed", type=int, default=42, help="random seed (default: 42)")
 
 parser.add_argument(
     "--no_schedule",
@@ -216,17 +203,15 @@ data = WaveformDataset(args.dataset_path)
 print("Preprocessing data")
 train, dev, test = data.train_dev_test()
 
-phase_dict = {
-    "trace_p_arrival_sample": "P",
-    "trace_s_arrival_sample": "S"
-}
+phase_dict = {"trace_p_arrival_sample": "P", "trace_s_arrival_sample": "S"}
 
 train_generator = sbg.GenericGenerator(train)
 dev_generator = sbg.GenericGenerator(train)
 
+# TODO: Proper data preprocessing
 augmentations = [
     sbg.ChangeDtype(np.float32),
-    sbg.ProbabilisticLabeller(label_columns=phase_dict, sigma=30, dim=0)
+    sbg.ProbabilisticLabeller(label_columns=phase_dict, sigma=30, dim=0),
 ]
 
 train_generator.add_augmentations(augmentations)
@@ -236,10 +221,20 @@ dev_generator.add_augmentations(augmentations)
 # FIXME: Value > 0 gives scray multi-processing error
 num_workers = 0
 
-train_loader = DataLoader(train_generator, batch_size=args.batch_size,
-                          shuffle=True, num_workers=num_workers, worker_init_fn=worker_seeding)
-dev_loader = DataLoader(dev_generator, batch_size=args.batch_size, shuffle=False,
-                        num_workers=num_workers, worker_init_fn=worker_seeding)
+train_loader = DataLoader(
+    train_generator,
+    batch_size=args.batch_size,
+    shuffle=True,
+    num_workers=num_workers,
+    worker_init_fn=worker_seeding,
+)
+dev_loader = DataLoader(
+    dev_generator,
+    batch_size=args.batch_size,
+    shuffle=False,
+    num_workers=num_workers,
+    worker_init_fn=worker_seeding,
+)
 
 print("Preparing model")
 # TODO: Pass arguments to EQTransformer
@@ -361,8 +356,7 @@ if args.swa and (args.swa_resume is not None):
     swag_model.to(args.device)
     swag_model.load_state_dict(checkpoint["state_dict"])
 
-columns = ["ep", "lr", "tr_loss", "tr_acc",
-           "te_loss", "te_acc", "time", "mem_usage"]
+columns = ["ep", "lr", "tr_loss", "tr_acc", "te_loss", "te_acc", "time", "mem_usage"]
 if args.swa:
     columns = columns[:-2] + ["swa_te_loss", "swa_te_acc"] + columns[-2:]
     swag_res = {"loss": None, "accuracy": None}
@@ -418,7 +412,7 @@ for epoch in range(start_epoch, args.epochs):
         if args.swa:
             utils.save_checkpoint(
                 args.dir,
-                epoch+1,
+                epoch + 1,
                 name="swag",
                 state_dict=swag_model.state_dict(),
             )
@@ -426,7 +420,7 @@ for epoch in range(start_epoch, args.epochs):
     time_ep = time.time() - time_ep
 
     if use_cuda:
-        memory_usage = torch.cuda.memory_allocated() / (1024.0 ** 3)
+        memory_usage = torch.cuda.memory_allocated() / (1024.0**3)
 
     values = [
         epoch + 1,
@@ -440,12 +434,10 @@ for epoch in range(start_epoch, args.epochs):
         # memory_usage,
     ]
     if args.swa:
-        values = values[:-2] + [swag_res["loss"],
-                                swag_res["accuracy"]] + values[-2:]
+        values = values[:-2] + [swag_res["loss"], swag_res["accuracy"]] + values[-2:]
 
     # Pretty printing current state of trairing
-    table = tabulate.tabulate(
-        [values], columns, tablefmt="simple", floatfmt="8.4f")
+    table = tabulate.tabulate([values], columns, tablefmt="simple", floatfmt="8.4f")
     if epoch % 40 == 0:
         table = table.split("\n")
         table = "\n".join([table[1]] + table)
