@@ -255,6 +255,7 @@ if args.swa:
         max_num_models=args.max_num_models,
     )
     swag_model.to(args.device)
+    swa_n = 0
 else:
     print("SGD Training")
 
@@ -278,19 +279,18 @@ optimizer = torch.optim.SGD(
     weight_decay=args.wd,
 )
 
-
-# TODO instead of loss_fn, use torch implementation and respect argument
-def loss_fn(y_pred, y_true, eps=1e-5):
-    # vector cross entropy loss
-    h = y_true * torch.log(y_pred + eps)
-    # Mean along sample dimension and sum along pick dimension
-    h = h.mean(-1).sum(-1)
-    h = h.mean()  # Mean over batch axis
-    return -h
+# TODO: Respect passed argument
+if args.loss == "CE":
+    loss_fn = F.cross_entropy
+else:
+    print("Error! Only Cross Entropy Loss (--loss=CE) supported at the moment.")
+    sys.exit(2)
 
 
-def train_loop(dataloader):
+def train_epoch(dataloader):
     size = len(dataloader.dataset)
+    loss_sum = 0.0
+
     for batch_id, batch in enumerate(dataloader):
         # Compute prediction and loss
         pred = model(batch["X"].to(model.device))
@@ -308,14 +308,20 @@ def train_loop(dataloader):
 
         # TODO: Instead of printing, return loss, accuracy, and potentially other measures of interest as return values from function
         # Might need to turn train_loop into a (Python) generator for that to work out nicely, as it potentially prints multiple times per call
+        loss, current = loss.item(), batch_id * batch["X"].shape[0]
+        # TODO: Unsure why we multiply with batch["X"].size(0) here.
+        loss_sum += loss * batch["X"].size(0)
         if batch_id % 5 == 0:
-            loss, current = loss.item(), batch_id * batch["X"].shape[0]
+            # TODO: Add args.verbose
             print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
 
+    # TODO: Also return some measure of accuracy
+    return {"loss": loss_sum / size, "accuracy": None}
 
-def test_loop(dataloader):
+
+def test_loop(dataloader, model=model):
     num_batches = len(dataloader)
-    test_loss = 0
+    test_loss = 0.0
 
     model.eval()  # close the model for evaluation
 
@@ -330,9 +336,29 @@ def test_loop(dataloader):
 
     model.train()  # re-open model for training stage
 
+    # TODO test_loss is averaged over number of batches
     test_loss /= num_batches
-    # TODO: Return loss instead of printing it (cmp. above and run_swap.py in swag repository)
-    print(f"Test avg loss: {test_loss:>8f} \n")
+    # TODO: Add args.verbose
+    print(f"Test avg loss: {test_loss:>8f}\n")
+    return {"loss": test_loss, "accuracy": None}
+
+
+def predict(dataloader):
+    # Effectively swa_gaussian/utils.predict
+    predictions = []
+    targets = []
+
+    model.eval()  # close model for evaluation
+
+    with torch.no_grad():
+        for batch in dataloader:
+            pred = model(batch["X"].to(model.device))
+            pred = torch.stack(pred, dim=1)
+
+            predictions.append(F.softmax(pred, dim=1).cpu().numpy())
+            targets.append(batch["y"].numpy())
+
+    return {"predictions": np.vstack(predictions), "targets": np.concatenate(targets)}
 
 
 start_epoch = 0
@@ -365,12 +391,14 @@ utils.save_checkpoint(
     args.dir,
     start_epoch,
     state_dict=model.state_dict(),
+    swa_state_dict=swag_model.state_dict() if args.swa else None,
+    swa_n=swa_n if args.swa else None,
     optimizer=optimizer.state_dict(),
 )
 
 sgd_ens_preds = None
 sgd_targets = None
-n_ensembled = 0.0
+n_ensembled = 0
 
 for epoch in range(start_epoch, args.epochs):
     time_ep = time.time()
@@ -381,26 +409,55 @@ for epoch in range(start_epoch, args.epochs):
     else:
         lr = args.lr_init
 
-    train_loop(train_loader)
+    train_res = train_epoch(train_loader)
     # Evaluate dev set on first epoch, on eval_freq, and on final epoch
     # TODO: What does eval_freq exactly mean
-    if (epoch == 0
+    if (
+        epoch == 0
         or epoch % args.eval_freq == args.eval_freq - 1
-            or epoch == args.epochs - 1):
-        test_loop(dev_loader)
+        or epoch == args.epochs - 1
+    ):
+        test_res = test_loop(dev_loader)
+    else:
+        # Make sure test_res is defined properly
+        test_res = {"loss": None, "accuracy": None}
 
-    if (args.swa
+    if (
+        args.swa
         and (epoch + 1) > args.swa_start
-            and (epoch + 1 - args.swa_start) % args.swa_c_epochs == 0):
-        # TODO: Collect results from computations
+        and (epoch + 1 - args.swa_start) % args.swa_c_epochs == 0
+    ):
+        sgd_res = predict(dev_loader)
+        sgd_preds = sgd_res["predictions"]
+        sgd_targets = sgd_res["targets"]
+        print("Updating sgd_ens")
+        if sgd_ens_preds is None:
+            sgd_ens_preds = sgd_preds.copy()
+        else:
+            # TODO: rewrite in a numerically stable way
+            sgd_ens_preds = sgd_ens_preds * n_ensembled / (
+                n_ensembled + 1
+            ) + sgd_preds / (n_ensembled + 1)
+        n_ensembled += 1
+
         swag_model.collect_model(model)
 
         # Same check as above for evaluating model
-        if (epoch == 0
+        if (
+            epoch == 0
             or epoch % args.eval_freq == args.eval_freq - 1
-                or epoch == args.epoch - 1):
-            # TODO: Actually evalute swag_model meaningfully
+            or epoch == args.epoch - 1
+        ):
             swag_model.sample(0.0)
+            # TODO: Need to implement this function ourselves or adapt it so that it works with our EQTransformer interface.
+            # NOTE: At some point it might be just easier to reimplement SWAG ourselves; I am doing that partially with train_epoch, test_loop, and predict already anyway.
+            # utils.bn_update(dev_loader, swag_model)
+            # TODO: evaluating `swag_model' the same way we can evaluate EQTransformer does not work yet.
+            # swag_res = test_loop(dev_loader, model=swag_model)
+            swag_res = {"loss": None, "accuracy": None}
+        else:
+            # Ensure swag_res exists
+            swag_res = {"loss": None, "accuracy": None}
 
     if (epoch + 1) % args.save_freq == 0:
         utils.save_checkpoint(
@@ -421,17 +478,18 @@ for epoch in range(start_epoch, args.epochs):
 
     if use_cuda:
         memory_usage = torch.cuda.memory_allocated() / (1024.0**3)
+    else:
+        memory_usage = None
 
     values = [
         epoch + 1,
         lr,
-        # TODO: no results currently
-        # train_res["loss"],
-        # train_res["accuracy"],
-        # test_res["loss"],
-        # test_res["accuracy"],
+        train_res["loss"],
+        train_res["accuracy"],
+        test_res["loss"],
+        test_res["accuracy"],
         time_ep,
-        # memory_usage,
+        memory_usage,
     ]
     if args.swa:
         values = values[:-2] + [swag_res["loss"], swag_res["accuracy"]] + values[-2:]
@@ -459,9 +517,9 @@ if args.epochs % args.save_freq != 0:
         )
 
 # Save predictions
-# if args.swa:
-#     np.savez(
-#         os.path.join(args.dir, "sgd_ens_preds.npz"),
-#         predictions=sgd_ens_preds,
-#         targets=sgd_targets,
-#     )
+if args.swa:
+    np.savez(
+        os.path.join(args.dir, "sgd_ens_preds.npz"),
+        predictions=sgd_ens_preds,
+        targets=sgd_targets,
+    )
