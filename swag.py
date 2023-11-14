@@ -327,12 +327,20 @@ def test_loop(dataloader, model=model):
 
     with torch.no_grad():
         for batch in dataloader:
-            pred = model(batch["X"].to(model.device))
+            # HACK: SWAG.device does not work.
+            if isinstance(model, SWAG):
+                pred = model(batch["X"])
+            else:
+                pred = model(batch["X"].to(model.device))
 
             # NOTE: Transform output from EQTransformer; see comment above
             pred = torch.stack(pred, dim=1)
 
-            test_loss += loss_fn(pred, batch["y"].to(model.device)).item()
+            # HACK: See above.
+            if isinstance(model, SWAG):
+                test_loss += loss_fn(pred, batch["y"]).item()
+            else:
+                test_loss += loss_fn(pred, batch["y"].to(model.device)).item()
 
     model.train()  # re-open model for training stage
 
@@ -451,10 +459,9 @@ for epoch in range(start_epoch, args.epochs):
             swag_model.sample(0.0)
             # TODO: Need to implement this function ourselves or adapt it so that it works with our EQTransformer interface.
             # NOTE: At some point it might be just easier to reimplement SWAG ourselves; I am doing that partially with train_epoch, test_loop, and predict already anyway.
-            # utils.bn_update(dev_loader, swag_model)
+            utils.bn_update(train_loader, swag_model)
             # TODO: evaluating `swag_model' the same way we can evaluate EQTransformer does not work yet.
-            # swag_res = test_loop(dev_loader, model=swag_model)
-            swag_res = {"loss": None, "accuracy": None}
+            swag_res = test_loop(dev_loader, model=swag_model)
         else:
             # Ensure swag_res exists
             swag_res = {"loss": None, "accuracy": None}
