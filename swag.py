@@ -11,14 +11,14 @@ import torch
 
 import torch.nn.functional as F
 
-import seisbench.generate as sbg
 from seisbench.data import WaveformDataset
 from seisbench.models import EQTransformer
-from seisbench.util import worker_seeding
-from torch.utils.data import DataLoader
 
-from swag import utils
+import swag
 from swag.posteriors import SWAG
+
+from utils import train_epoch, test_loop, predict, preprocess
+
 
 # Argument Parsing
 parser = argparse.ArgumentParser(description="SWA Training")
@@ -46,6 +46,7 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    # TODO: This argument (and consequently, the test dataset) is not being used at all yet.
     "--use_test",
     dest="use_test",
     action="store_true",
@@ -123,7 +124,11 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--swa_lr", type=float, default=0.02, metavar="LR", help="SWA LR (default: 0.02)"
+    "--swa_lr",
+    type=float,
+    default=0.02,
+    metavar="LR",
+    help="SWA LR (default: 0.02)",
 )
 
 parser.add_argument(
@@ -191,6 +196,7 @@ with open(os.path.join(args.dir, "command.sh"), "w") as f:
 
 print(f"Using model {args.model}")
 if args.model == "EQTransformer":
+    # TODO: Try pretrained EQTransformer
     model_cfg = EQTransformer
 else:
     # TODO: Better / different error handling
@@ -201,40 +207,7 @@ print(f"Loading dataset {args.dataset} from {args.dataset_path}")
 data = WaveformDataset(args.dataset_path)
 
 print("Preprocessing data")
-train, dev, test = data.train_dev_test()
-
-phase_dict = {"trace_p_arrival_sample": "P", "trace_s_arrival_sample": "S"}
-
-train_generator = sbg.GenericGenerator(train)
-dev_generator = sbg.GenericGenerator(train)
-
-# TODO: Proper data preprocessing
-augmentations = [
-    sbg.ChangeDtype(np.float32),
-    sbg.ProbabilisticLabeller(label_columns=phase_dict, sigma=30, dim=0),
-]
-
-train_generator.add_augmentations(augmentations)
-dev_generator.add_augmentations(augmentations)
-
-# NOTE: Hard-coded num_workers
-# FIXME: Value > 0 gives scray multi-processing error
-num_workers = 0
-
-train_loader = DataLoader(
-    train_generator,
-    batch_size=args.batch_size,
-    shuffle=True,
-    num_workers=num_workers,
-    worker_init_fn=worker_seeding,
-)
-dev_loader = DataLoader(
-    dev_generator,
-    batch_size=args.batch_size,
-    shuffle=False,
-    num_workers=num_workers,
-    worker_init_fn=worker_seeding,
-)
+train_loader, dev_loader, _ = preprocess(data, args.batch_size)
 
 print("Preparing model")
 # TODO: Pass arguments to EQTransformer
@@ -261,6 +234,7 @@ else:
 
 
 def schedule(epoch):
+    """Sets the schedule for current epoch, also depending on whether we do SWA training or not."""
     t = (epoch) / (args.swa_start if args.swa else args.epochs)
     lr_ratio = args.swa_lr / args.lr_init if args.swa else 0.01
     if t <= 0.5:
@@ -286,89 +260,6 @@ else:
     print("Error! Only Cross Entropy Loss (--loss=CE) supported at the moment.")
     sys.exit(2)
 
-
-def train_epoch(dataloader):
-    size = len(dataloader.dataset)
-    loss_sum = 0.0
-
-    for batch_id, batch in enumerate(dataloader):
-        # Compute prediction and loss
-        pred = model(batch["X"].to(model.device))
-
-        # NOTE: pred, the output from EQTransformer, is a 3-tuple; each element is a tensor with dimension (batch_size, sample_size)
-        # I stack those three tensors so that the dimensions match up with batch["y"], ie, (batch_size, 3, sample_size) in this case
-        pred = torch.stack(pred, dim=1)
-
-        loss = loss_fn(pred, batch["y"].to(model.device))
-
-        # Backpropagation
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        # TODO: Instead of printing, return loss, accuracy, and potentially other measures of interest as return values from function
-        # Might need to turn train_loop into a (Python) generator for that to work out nicely, as it potentially prints multiple times per call
-        loss, current = loss.item(), batch_id * batch["X"].shape[0]
-        # TODO: Unsure why we multiply with batch["X"].size(0) here.
-        loss_sum += loss * batch["X"].size(0)
-        if batch_id % 5 == 0:
-            # TODO: Add args.verbose
-            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
-
-    # TODO: Also return some measure of accuracy
-    return {"loss": loss_sum / size, "accuracy": None}
-
-
-def test_loop(dataloader, model=model):
-    num_batches = len(dataloader)
-    test_loss = 0.0
-
-    model.eval()  # close the model for evaluation
-
-    with torch.no_grad():
-        for batch in dataloader:
-            # HACK: SWAG.device does not work.
-            if isinstance(model, SWAG):
-                pred = model(batch["X"])
-            else:
-                pred = model(batch["X"].to(model.device))
-
-            # NOTE: Transform output from EQTransformer; see comment above
-            pred = torch.stack(pred, dim=1)
-
-            # HACK: See above.
-            if isinstance(model, SWAG):
-                test_loss += loss_fn(pred, batch["y"]).item()
-            else:
-                test_loss += loss_fn(pred, batch["y"].to(model.device)).item()
-
-    model.train()  # re-open model for training stage
-
-    # TODO test_loss is averaged over number of batches
-    test_loss /= num_batches
-    # TODO: Add args.verbose
-    print(f"Test avg loss: {test_loss:>8f}\n")
-    return {"loss": test_loss, "accuracy": None}
-
-
-def predict(dataloader):
-    # Effectively swa_gaussian/utils.predict
-    predictions = []
-    targets = []
-
-    model.eval()  # close model for evaluation
-
-    with torch.no_grad():
-        for batch in dataloader:
-            pred = model(batch["X"].to(model.device))
-            pred = torch.stack(pred, dim=1)
-
-            predictions.append(F.softmax(pred, dim=1).cpu().numpy())
-            targets.append(batch["y"].numpy())
-
-    return {"predictions": np.vstack(predictions), "targets": np.concatenate(targets)}
-
-
 start_epoch = 0
 if args.resume is not None:
     print(f"Resume training from {args.resume}")
@@ -390,12 +281,21 @@ if args.swa and (args.swa_resume is not None):
     swag_model.to(args.device)
     swag_model.load_state_dict(checkpoint["state_dict"])
 
-columns = ["ep", "lr", "tr_loss", "tr_acc", "te_loss", "te_acc", "time", "mem_usage"]
+columns = [
+    "ep",
+    "lr",
+    "tr_loss",
+    "tr_acc",
+    "te_loss",
+    "te_acc",
+    "time",
+    "mem_usage",
+]
 if args.swa:
     columns = columns[:-2] + ["swa_te_loss", "swa_te_acc"] + columns[-2:]
     swag_res = {"loss": None, "accuracy": None}
 
-utils.save_checkpoint(
+swag.utils.save_checkpoint(
     args.dir,
     start_epoch,
     state_dict=model.state_dict(),
@@ -413,11 +313,11 @@ for epoch in range(start_epoch, args.epochs):
 
     if not args.no_schedule:
         lr = schedule(epoch)
-        utils.adjust_learning_rate(optimizer, lr)
+        swag.utils.adjust_learning_rate(optimizer, lr)
     else:
         lr = args.lr_init
 
-    train_res = train_epoch(train_loader)
+    train_res = train_epoch(model, train_loader, loss_fn, optimizer)
     # Evaluate dev set on first epoch, on eval_freq, and on final epoch
     # TODO: What does eval_freq exactly mean
     if (
@@ -425,7 +325,7 @@ for epoch in range(start_epoch, args.epochs):
         or epoch % args.eval_freq == args.eval_freq - 1
         or epoch == args.epochs - 1
     ):
-        test_res = test_loop(dev_loader)
+        test_res = test_loop(model, dev_loader, loss_fn)
     else:
         # Make sure test_res is defined properly
         test_res = {"loss": None, "accuracy": None}
@@ -435,7 +335,7 @@ for epoch in range(start_epoch, args.epochs):
         and (epoch + 1) > args.swa_start
         and (epoch + 1 - args.swa_start) % args.swa_c_epochs == 0
     ):
-        sgd_res = predict(dev_loader)
+        sgd_res = predict(model, dev_loader)
         sgd_preds = sgd_res["predictions"]
         sgd_targets = sgd_res["targets"]
         print("Updating sgd_ens")
@@ -457,70 +357,70 @@ for epoch in range(start_epoch, args.epochs):
             or epoch == args.epoch - 1
         ):
             swag_model.sample(0.0)
-            # TODO: Need to implement this function ourselves or adapt it so that it works with our EQTransformer interface.
             # NOTE: At some point it might be just easier to reimplement SWAG ourselves; I am doing that partially with train_epoch, test_loop, and predict already anyway.
-            utils.bn_update(train_loader, swag_model)
-            # TODO: evaluating `swag_model' the same way we can evaluate EQTransformer does not work yet.
-            swag_res = test_loop(dev_loader, model=swag_model)
+            swag.utils.bn_update(train_loader, swag_model)
+            swag_res = test_loop(swag_model, dev_loader, loss_fn)
         else:
             # Ensure swag_res exists
             swag_res = {"loss": None, "accuracy": None}
 
-    if (epoch + 1) % args.save_freq == 0:
-        utils.save_checkpoint(
-            args.dir,
-            epoch + 1,
-            state_dict=model.state_dict(),
-            optimizer=optimizer.state_dict(),
-        )
-        if args.swa:
-            utils.save_checkpoint(
+        if (epoch + 1) % args.save_freq == 0:
+            swag.utils.save_checkpoint(
                 args.dir,
                 epoch + 1,
-                name="swag",
-                state_dict=swag_model.state_dict(),
+                state_dict=model.state_dict(),
+                optimizer=optimizer.state_dict(),
+            )
+            if args.swa:
+                swag.utils.save_checkpoint(
+                    args.dir,
+                    epoch + 1,
+                    name="swag",
+                    state_dict=swag_model.state_dict(),
+                )
+
+        time_ep = time.time() - time_ep
+
+        if use_cuda:
+            memory_usage = torch.cuda.memory_allocated() / (1024.0**3)
+        else:
+            memory_usage = None
+
+        values = [
+            epoch + 1,
+            lr,
+            train_res["loss"],
+            train_res["accuracy"],
+            test_res["loss"],
+            test_res["accuracy"],
+            time_ep,
+            memory_usage,
+        ]
+        if args.swa:
+            values = (
+                values[:-2] + [swag_res["loss"], swag_res["accuracy"]] + values[-2:]
             )
 
-    time_ep = time.time() - time_ep
-
-    if use_cuda:
-        memory_usage = torch.cuda.memory_allocated() / (1024.0**3)
-    else:
-        memory_usage = None
-
-    values = [
-        epoch + 1,
-        lr,
-        train_res["loss"],
-        train_res["accuracy"],
-        test_res["loss"],
-        test_res["accuracy"],
-        time_ep,
-        memory_usage,
-    ]
-    if args.swa:
-        values = values[:-2] + [swag_res["loss"], swag_res["accuracy"]] + values[-2:]
-
-    # Pretty printing current state of trairing
-    table = tabulate.tabulate([values], columns, tablefmt="simple", floatfmt="8.4f")
-    if epoch % 40 == 0:
-        table = table.split("\n")
-        table = "\n".join([table[1]] + table)
-    else:
-        table = table.split("\n")[2]
-    print(table)
+        # Pretty printing current state of trairing
+        table = tabulate.tabulate([values], columns, tablefmt="simple", floatfmt="8.4f")
+        if epoch % 40 == 0:
+            table = table.split("\n")
+            table = "\n".join([table[1]] + table)
+        else:
+            table = table.split("\n")[2]
+        print(table)
 
 # Save model one more time if `epochs' is not a multiple of `save_freq'
 if args.epochs % args.save_freq != 0:
-    utils.save_checkpoint(
+    swag.utils.save_checkpoint(
         args.dir,
-        args.epochs,
+        epoch + 1,
         state_dict=model.state_dict(),
         optimizer=optimizer.state_dict(),
     )
     if args.swa and args.epochs > args.swa_start:
-        utils.save_checkpoint(
-            args.dir, args.epochs, name="swag", state_dict=swag_model.state_dict()
+        swag.utils.save_checkpoint(
+            args.dir, epoch + 1, name="swag", state_dict=swag_model.state_dict()
         )
 
 # Save predictions
