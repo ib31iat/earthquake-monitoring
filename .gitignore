@@ -10,3 +10,6 @@ swag
 
 # Ignore python cache
 __pycache__
+
+# Ignore .cache
+.cache
