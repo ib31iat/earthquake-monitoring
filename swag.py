@@ -356,6 +356,7 @@ for epoch in range(start_epoch, args.epochs):
             or epoch % args.eval_freq == args.eval_freq - 1
             or epoch == args.epoch - 1
         ):
+            # TODO: Why do the original authors use 0.0 as the argument?
             swag_model.sample(0.0)
             # NOTE: At some point it might be just easier to reimplement SWAG ourselves; I am doing that partially with train_epoch, test_loop, and predict already anyway.
             swag.utils.bn_update(train_loader, swag_model)

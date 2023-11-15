@@ -13,4 +13,4 @@ This installs the `seisbench` package inside `external/seisbench` into the curre
 After changes to the local `seisbench` package, `pip install .` needs to rerun for those changes to propagate to any place where `import seisbench` or similar is used.
 
 ## SWAG
-Run `ln -s external/swa_gaussian/swag .` in the project root such that the swag script can find the swag submodule
+Run `ln -s external/swa_gaussian/swag .` in the project root such that the swag script can find the swag submodule.
