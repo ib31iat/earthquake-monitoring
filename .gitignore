@@ -4,3 +4,6 @@ data/STEAD/*.hdf5
 data/STEAD/*.csv
 data/STEAD/example/*.csv
 data/STEAD/example/*.hdf5
+
+# swag symlink
+swag
