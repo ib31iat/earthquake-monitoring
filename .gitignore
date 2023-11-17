@@ -1,7 +1,7 @@
 .ipynb_checkpoints
-
-# Ignore data direcory
-data
+data/**/*.h5
+data/**/*.hdf5
+data/**/*.csv
 
 # Ignore swag symlink
 swag
