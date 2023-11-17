@@ -1,9 +1,7 @@
 .ipynb_checkpoints
-data/grimp/*.h5
-data/STEAD/*.hdf5
-data/STEAD/*.csv
-data/STEAD/example/*.csv
-data/STEAD/example/*.hdf5
+
+# Ignore data direcory
+data
 
 # Ignore swag symlink
 swag
