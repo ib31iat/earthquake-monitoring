@@ -211,7 +211,7 @@ train_loader, dev_loader, _ = preprocess(data, args.batch_size)
 
 print("Preparing model")
 # TODO: Pass arguments to EQTransformer
-model = model_cfg()
+model = model_cfg(in_channels=1)
 model.to(args.device)
 
 if args.cov_mat:
@@ -226,6 +226,7 @@ if args.swa:
         model_cfg,
         no_cov_mat=args.no_cov_mat,
         max_num_models=args.max_num_models,
+        in_channels= 1
     )
     swag_model.to(args.device)
     swa_n = 0

@@ -1,5 +1,7 @@
 import numpy as np
 import torch
+from matplotlib import pyplot as plt
+from math import ceil
 
 import torch.nn.functional as F
 
@@ -8,6 +10,7 @@ from seisbench.util import worker_seeding
 from swag.posteriors import SWAG
 import seisbench.generate as sbg
 from torch.utils.data import DataLoader
+from augmentations import ChangeChannels
 
 """Separate file for keeping some functions.  Arguably, these could just live in main.py, but this way they should be directly usable in a jupyter notebook via `import utils`."""
 
@@ -85,7 +88,6 @@ def predict(model, dataloader):
 
     return {"predictions": np.vstack(predictions), "targets": np.concatenate(targets)}
 
-
 def preprocess(data, batch_size):
     """Takes in a WaveformDataset and performs preprocessing on it.  Returns"""
     train, dev, test = data.train_dev_test()
@@ -98,13 +100,28 @@ def preprocess(data, batch_size):
 
     # TODO: Proper data preprocessing
     augmentations = [
+        sbg.WindowAroundSample(list(phase_dict.keys()), samples_before=3000, windowlen=6000, selection="random", strategy="variable"),
+        sbg.RandomWindow(windowlen=6000, strategy="pad"),
+        sbg.RandomArrayRotation(keys='X', axis=-1),
         sbg.ChangeDtype(np.float32),
-        sbg.ProbabilisticLabeller(label_columns=phase_dict, sigma=30, dim=0),
+        ChangeChannels(0),
+        sbg.ProbabilisticLabeller(label_columns=phase_dict, sigma=1e-9, dim=0),
     ]
 
     train_generator.add_augmentations(augmentations)
     dev_generator.add_augmentations(augmentations)
     test_generator.add_augmentations(augmentations)
+
+    # picks = {}
+    # for i in range(0, 6000, 100):
+    #     picks[i/100] = 0
+
+    # for idx in range(len(train_generator)):
+    #     i = ceil(np.argmax(train_generator[idx]['y'][0])/100)
+    #     picks[i] = picks[i] + 1
+
+    # plt.bar(picks.keys(), picks.values())
+    # plt.show()
 
     # NOTE: Hard-coded num_workers
     # FIXME: Value > 0 gives scray multi-processing error
