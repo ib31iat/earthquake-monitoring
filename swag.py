@@ -337,7 +337,7 @@ for epoch in range(start_epoch, args.epochs):
         or epoch % args.eval_freq == args.eval_freq - 1
         or epoch == args.epochs - 1
     ):
-        test_res = test_loop(model, dev_loader, loss_fn, verbose=args.verbose)
+        test_res = test_loop(model, dev_loader, loss_fn)
     else:
         # Make sure test_res is defined properly
         test_res = {"loss": None, "accuracy": None}
