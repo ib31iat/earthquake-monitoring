@@ -17,7 +17,7 @@ from seisbench.models import EQTransformer
 import swag
 from swag.posteriors import SWAG
 
-from utils import train_epoch, test_loop, predict, preprocess
+from utils import train_epoch, test_loop, predict, preprocess, make_loss_fn
 
 
 # Argument Parsing
@@ -168,6 +168,14 @@ parser.add_argument(
 parser.add_argument("--seed", type=int, default=42, help="random seed (default: 42)")
 
 parser.add_argument(
+    "--num_workers", type=int, default=0, help="Number of Workers (default: 0)"
+)
+
+parser.add_argument(
+    "--verbose", action="store_true", help="Verbose training)"
+)
+
+parser.add_argument(
     "--no_schedule",
     action="store_true",
     help="store schedule",
@@ -207,7 +215,7 @@ print(f"Loading dataset {args.dataset} from {args.dataset_path}")
 data = WaveformDataset(args.dataset_path)
 
 print("Preprocessing data")
-train_loader, dev_loader, _ = preprocess(data, args.batch_size)
+train_loader, dev_loader, _ = preprocess(data, args.batch_size, args.num_workers)
 
 print("Preparing model")
 # TODO: Pass arguments to EQTransformer
@@ -226,7 +234,7 @@ if args.swa:
         model_cfg,
         no_cov_mat=args.no_cov_mat,
         max_num_models=args.max_num_models,
-        in_channels= 1
+        in_channels=1,
     )
     swag_model.to(args.device)
     swa_n = 0
@@ -256,10 +264,13 @@ optimizer = torch.optim.SGD(
 
 # TODO: Respect passed argument
 if args.loss == "CE":
-    loss_fn = F.cross_entropy
+    loss_fn = F.binary_cross_entropy
 else:
-    print("Error! Only Cross Entropy Loss (--loss=CE) supported at the moment.")
+    print("Error! Only Binary Cross Entropy Loss (--loss=CE) supported at the moment.")
     sys.exit(2)
+
+loss_fn = make_loss_fn(loss_fn)
+
 
 start_epoch = 0
 if args.resume is not None:
@@ -318,7 +329,7 @@ for epoch in range(start_epoch, args.epochs):
     else:
         lr = args.lr_init
 
-    train_res = train_epoch(model, train_loader, loss_fn, optimizer)
+    train_res = train_epoch(model, train_loader, loss_fn, optimizer, verbose=args.verbose)
     # Evaluate dev set on first epoch, on eval_freq, and on final epoch
     # TODO: What does eval_freq exactly mean
     if (
