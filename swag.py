@@ -172,6 +172,10 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--verbose", action="store_true", help="Verbose training)"
+)
+
+parser.add_argument(
     "--no_schedule",
     action="store_true",
     help="store schedule",
@@ -325,7 +329,7 @@ for epoch in range(start_epoch, args.epochs):
     else:
         lr = args.lr_init
 
-    train_res = train_epoch(model, train_loader, loss_fn, optimizer)
+    train_res = train_epoch(model, train_loader, loss_fn, optimizer, verbose=args.verbose)
     # Evaluate dev set on first epoch, on eval_freq, and on final epoch
     # TODO: What does eval_freq exactly mean
     if (
@@ -333,7 +337,7 @@ for epoch in range(start_epoch, args.epochs):
         or epoch % args.eval_freq == args.eval_freq - 1
         or epoch == args.epochs - 1
     ):
-        test_res = test_loop(model, dev_loader, loss_fn)
+        test_res = test_loop(model, dev_loader, loss_fn, verbose=args.verbose)
     else:
         # Make sure test_res is defined properly
         test_res = {"loss": None, "accuracy": None}
