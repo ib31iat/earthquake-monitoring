@@ -28,7 +28,7 @@ def train_epoch(model, dataloader, loss_fn, optimizer, verbose=False):
         pred = model(batch["X"].to(model.device))
 
         loss = loss_fn(
-            pred, batch["y"].to(model.device), batch["detection"].to(model.device)
+            pred, batch["y"].to(model.device), batch["detections"].to(model.device)
         )
 
         # Backpropagation
@@ -89,9 +89,10 @@ def predict(model, dataloader):
 
     with torch.no_grad():
         for batch in dataloader:
-            pred = model(batch["X"].to(model.device))
+            # TODO: Fix dimensions here.
+            det_pred, p_pred, s_pred = model(batch["X"].to(model.device))
 
-            predictions.append(F.softmax(pred, dim=1).cpu().numpy())
+            predictions.append(torch.stack((p_pred, s_pred), dim=1).numpy())
             targets.append(batch["y"].numpy())
 
     return {"predictions": np.vstack(predictions), "targets": np.concatenate(targets)}
