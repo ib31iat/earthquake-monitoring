@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 from math import ceil
 
 import torch.nn.functional as F
+from tqdm import tqdm
 
 from seisbench.models import EQTransformer
 from seisbench.util import worker_seeding
@@ -15,15 +16,20 @@ from augmentations import ChangeChannels, DuplicateEvent
 """Separate file for keeping some functions.  Arguably, these could just live in main.py, but this way they should be directly usable in a jupyter notebook via `import utils`."""
 
 
-def train_epoch(model, dataloader, loss_fn, optimizer):
+def train_epoch(model, dataloader, loss_fn, optimizer, verbose=False):
     size = len(dataloader.dataset)
     loss_sum = 0.0
+
+    if verbose:
+        pbar = tqdm(dataloader)
 
     for batch_id, batch in enumerate(dataloader):
         # Compute prediction and loss
         pred = model(batch["X"].to(model.device))
 
-        loss = loss_fn(pred, batch["y"].to(model.device))
+        loss = loss_fn(
+            pred, batch["y"].to(model.device), batch["detection"].to(model.device)
+        )
 
         # Backpropagation
         optimizer.zero_grad()
@@ -32,11 +38,13 @@ def train_epoch(model, dataloader, loss_fn, optimizer):
 
         loss, current = loss.item(), batch_id * batch["X"].shape[0]
 
-        # TODO: Unsure why we multiply with batch["X"].size(0) here.
+        # NOTE: Unsure why we multiply with batch["X"].size(0) here.
         loss_sum += loss * batch["X"].size(0)
-        if batch_id % 5 == 0:
-            # TODO: Add args.verbose
-            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+        if verbose:
+            if batch_id % 5 == 0:
+                # Adapt process bar descrption
+                pbar.set_description(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+                pbar.refresh()
 
     # TODO: Also return some measure of accuracy
     return {"loss": loss_sum / size, "accuracy": None}
@@ -58,9 +66,9 @@ def test_loop(model, dataloader, loss_fn):
 
             # HACK: See above.
             if isinstance(model, SWAG):
-                test_loss += loss_fn(pred, batch["y"]).item()
+                test_loss += loss_fn(pred, batch["y"]., batch["detections"]).item()
             else:
-                test_loss += loss_fn(pred, batch["y"].to(model.device)).item()
+                test_loss += loss_fn(pred, batch["y"].to(model.device), batch["detections"].to(model.device)).item()
 
     model.train()  # re-open model for training stage
 
@@ -260,3 +268,22 @@ def preprocess(data, batch_size, num_workers):
         worker_init_fn=worker_seeding,
     )
     return train_loader, dev_loader, test_loader
+
+
+def make_loss_fn(loss_fn):
+    """Adapes `loss_fn' (e.g. torch.F.cross_entropy or torch.nn.BCELoss) to be compatible with EQTransformer output."""
+    def f(pred, y_true, det_true):
+        # vector cross entropy loss
+        p_true = y_true[:, 0]
+        s_true = y_true[:, 1]
+        det_true = det_true[:, 0]
+
+        det_pred, p_pred, s_pred = pred
+
+        return (
+            0.05 * loss_fn(det_pred.float(), det_true.float())
+            + 0.4 * loss_fn(p_pred.float(), p_true.float())
+            + 0.55 * loss_fn(s_pred.float(), s_true.float())
+        )
+
+    return f

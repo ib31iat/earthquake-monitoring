@@ -17,7 +17,7 @@ from seisbench.models import EQTransformer
 import swag
 from swag.posteriors import SWAG
 
-from utils import train_epoch, test_loop, predict, preprocess
+from utils import train_epoch, test_loop, predict, preprocess, make_loss_fn
 
 
 # Argument Parsing
@@ -260,6 +260,9 @@ if args.loss == "CE":
 else:
     print("Error! Only Cross Entropy Loss (--loss=CE) supported at the moment.")
     sys.exit(2)
+
+loss_fn = make_loss_fn(loss_fn)
+
 
 start_epoch = 0
 if args.resume is not None:
