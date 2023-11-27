@@ -11,3 +11,6 @@ __pycache__
 
 # Ignore .cache
 .cache
+
+# Large swag pred file
+sgd_ens_preds.npz
