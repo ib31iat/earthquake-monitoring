@@ -264,9 +264,9 @@ optimizer = torch.optim.SGD(
 
 # TODO: Respect passed argument
 if args.loss == "CE":
-    loss_fn = F.cross_entropy
+    loss_fn = F.binary_cross_entropy
 else:
-    print("Error! Only Cross Entropy Loss (--loss=CE) supported at the moment.")
+    print("Error! Only Binary Cross Entropy Loss (--loss=CE) supported at the moment.")
     sys.exit(2)
 
 loss_fn = make_loss_fn(loss_fn)
