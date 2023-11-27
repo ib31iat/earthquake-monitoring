@@ -66,7 +66,7 @@ def test_loop(model, dataloader, loss_fn):
 
             # HACK: See above.
             if isinstance(model, SWAG):
-                test_loss += loss_fn(pred, batch["y"]., batch["detections"]).item()
+                test_loss += loss_fn(pred, batch["y"], batch["detections"]).item()
             else:
                 test_loss += loss_fn(pred, batch["y"].to(model.device), batch["detections"].to(model.device)).item()
 

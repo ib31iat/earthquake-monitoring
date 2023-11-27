@@ -167,6 +167,8 @@ parser.add_argument(
 
 parser.add_argument("--seed", type=int, default=42, help="random seed (default: 42)")
 
+parses.add_argument("--num_workers", type=int, default=0, help"Number of Workers (default: 0)")
+
 parser.add_argument(
     "--no_schedule",
     action="store_true",
@@ -207,7 +209,7 @@ print(f"Loading dataset {args.dataset} from {args.dataset_path}")
 data = WaveformDataset(args.dataset_path)
 
 print("Preprocessing data")
-train_loader, dev_loader, _ = preprocess(data, args.batch_size)
+train_loader, dev_loader, _ = preprocess(data, args.batch_size, args.num_workers)
 
 print("Preparing model")
 # TODO: Pass arguments to EQTransformer
