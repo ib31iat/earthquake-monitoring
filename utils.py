@@ -16,22 +16,27 @@ from augmentations import ChangeChannels, DuplicateEvent
 """Separate file for keeping some functions.  Arguably, these could just live in main.py, but this way they should be directly usable in a jupyter notebook via `import utils`."""
 
 
-def train_epoch(model, dataloader, loss_fn, optimizer):
+def train_epoch(model, dataloader, loss_fn, optimizer, verbose=False):
     model.train()
-    size = len(dataloader.dataset)
     loss_sum = 0.0
     loss = 0.0
 
-    pbar = tqdm(dataloader)
+    if verbose:
+        pbar = tqdm(dataloader)
+    else:
+        pbar = dataloader
+
     for batch in pbar:
         # Update progress bar description
-        pbar.set_description(f"loss: {loss:>7f}")
-        pbar.refresh()
+        if verbose:
+            pbar.set_description(f"loss: {loss:>7f}")
+            pbar.refresh()
         # Compute prediction and loss
         pred = model(batch["X"].to(model.device))
 
         loss = loss_fn(
-            pred, batch["y"].to(model.device), batch["detections"].to(model.device)
+            pred, batch["y"].to(model.device),
+            batch["detections"].to(model.device)
         )
 
         # Backpropagation
@@ -41,22 +46,25 @@ def train_epoch(model, dataloader, loss_fn, optimizer):
 
         loss = loss.item()
 
-        # NOTE: Unsure why we multiply with batch["X"].size(0) here.
-        loss_sum += loss * batch["X"].size(0)
+        loss_sum += loss
 
     # TODO: Also return some measure of accuracy
-    return {"loss": loss_sum / size, "accuracy": None}
+    return {"loss": loss_sum, "accuracy": None}
 
 
-def test_loop(model, dataloader, loss_fn):
+def test_loop(model, dataloader, loss_fn, verbose=False):
     num_batches = len(dataloader)
     test_loss = 0.0
 
     model.eval()  # close the model for evaluation
 
+    if verbose:
+        pbar = tqdm(dataloader)
+    else:
+        pbar = dataloader
+
     with torch.no_grad():
-        for batch in dataloader:
-            # HACK: SWAG.device does not work.
+        for batch in pbar:
             if isinstance(model, SWAG):
                 pred = model(batch["X"].to(model.base.device))
             else:
@@ -73,7 +81,8 @@ def test_loop(model, dataloader, loss_fn):
     # TODO: test_loss is averaged over number of batches
     test_loss /= num_batches
     # TODO: Add args.verbose
-    print(f"Test avg loss: {test_loss:>8f}\n")
+    if verbose:
+        print(f"Test avg loss: {test_loss:>8f}\n")
     return {"loss": test_loss, "accuracy": None}
 
 

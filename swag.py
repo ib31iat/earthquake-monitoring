@@ -329,7 +329,7 @@ for epoch in range(start_epoch, args.epochs):
     else:
         lr = args.lr_init
 
-    train_res = train_epoch(model, train_loader, loss_fn, optimizer)
+    train_res = train_epoch(model, train_loader, loss_fn, optimizer, verbose=args.verbose)
     # Evaluate dev set on first epoch, on eval_freq, and on final epoch
     # TODO: What does eval_freq exactly mean
     if (
@@ -337,7 +337,7 @@ for epoch in range(start_epoch, args.epochs):
         or epoch % args.eval_freq == args.eval_freq - 1
         or epoch == args.epochs - 1
     ):
-        test_res = test_loop(model, dev_loader, loss_fn)
+        test_res = test_loop(model, dev_loader, loss_fn, verbose=args.verbose)
     else:
         # Make sure test_res is defined properly
         test_res = {"loss": None, "accuracy": None}
@@ -372,7 +372,7 @@ for epoch in range(start_epoch, args.epochs):
             swag_model.sample(0.0)
             # NOTE: At some point it might be just easier to reimplement SWAG ourselves; I am doing that partially with train_epoch, test_loop, and predict already anyway.
             swag.utils.bn_update(train_loader, swag_model)
-            swag_res = test_loop(swag_model, dev_loader, loss_fn)
+            swag_res = test_loop(swag_model, dev_loader, loss_fn, verbose=args.verbose)
         else:
             # Ensure swag_res exists
             swag_res = {"loss": None, "accuracy": None}
