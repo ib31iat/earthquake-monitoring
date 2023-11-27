@@ -88,6 +88,7 @@ def predict(model, dataloader):
 
     return {"predictions": np.vstack(predictions), "targets": np.concatenate(targets)}
 
+
 def preprocess(data, batch_size):
     """Takes in a WaveformDataset and performs preprocessing on it.  Returns"""
     train, dev, test = data.train_dev_test()
@@ -100,9 +101,15 @@ def preprocess(data, batch_size):
 
     # TODO: Proper data preprocessing
     augmentations = [
-        sbg.WindowAroundSample(list(phase_dict.keys()), samples_before=3000, windowlen=6000, selection="random", strategy="variable"),
+        sbg.WindowAroundSample(
+            list(phase_dict.keys()),
+            samples_before=3000,
+            windowlen=6000,
+            selection="random",
+            strategy="variable",
+        ),
         sbg.RandomWindow(windowlen=6000, strategy="pad"),
-        sbg.RandomArrayRotation(keys='X', axis=-1),
+        sbg.RandomArrayRotation(keys="X", axis=-1),
         sbg.ChangeDtype(np.float32),
         ChangeChannels(0),
         sbg.ProbabilisticLabeller(label_columns=phase_dict, sigma=1e-9, dim=0),
