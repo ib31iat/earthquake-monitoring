@@ -329,7 +329,7 @@ for epoch in range(start_epoch, args.epochs):
     else:
         lr = args.lr_init
 
-    train_res = train_epoch(model, train_loader, loss_fn, optimizer, verbose=args.verbose)
+    train_res = train_epoch(model, train_loader, loss_fn, optimizer)
     # Evaluate dev set on first epoch, on eval_freq, and on final epoch
     # TODO: What does eval_freq exactly mean
     if (
