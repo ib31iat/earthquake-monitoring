@@ -16,14 +16,17 @@ from augmentations import ChangeChannels, DuplicateEvent
 """Separate file for keeping some functions.  Arguably, these could just live in main.py, but this way they should be directly usable in a jupyter notebook via `import utils`."""
 
 
-def train_epoch(model, dataloader, loss_fn, optimizer, verbose=False):
+def train_epoch(model, dataloader, loss_fn, optimizer):
+    model.train()
     size = len(dataloader.dataset)
     loss_sum = 0.0
+    loss = 0.0
 
-    if verbose:
-        pbar = tqdm(dataloader)
-
-    for batch_id, batch in enumerate(dataloader):
+    pbar = tqdm(dataloader)
+    for batch in pbar:
+        # Update progress bar description
+        pbar.set_description(f"loss: {loss:>7f}")
+        pbar.refresh()
         # Compute prediction and loss
         pred = model(batch["X"].to(model.device))
 
@@ -36,15 +39,10 @@ def train_epoch(model, dataloader, loss_fn, optimizer, verbose=False):
         loss.backward()
         optimizer.step()
 
-        loss, current = loss.item(), batch_id * batch["X"].shape[0]
+        loss = loss.item()
 
         # NOTE: Unsure why we multiply with batch["X"].size(0) here.
         loss_sum += loss * batch["X"].size(0)
-        if verbose:
-            if batch_id % 5 == 0:
-                # Adapt process bar descrption
-                pbar.set_description(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
-                pbar.refresh()
 
     # TODO: Also return some measure of accuracy
     return {"loss": loss_sum / size, "accuracy": None}
@@ -60,13 +58,13 @@ def test_loop(model, dataloader, loss_fn):
         for batch in dataloader:
             # HACK: SWAG.device does not work.
             if isinstance(model, SWAG):
-                pred = model(batch["X"])
+                pred = model(batch["X"].to(model.base.device))
             else:
                 pred = model(batch["X"].to(model.device))
 
             # HACK: See above.
             if isinstance(model, SWAG):
-                test_loss += loss_fn(pred, batch["y"], batch["detections"]).item()
+                test_loss += loss_fn(pred, batch["y"].to(model.base.device), batch["detections"].to(model.base.device)).item()
             else:
                 test_loss += loss_fn(pred, batch["y"].to(model.device), batch["detections"].to(model.device)).item()
 
@@ -92,7 +90,7 @@ def predict(model, dataloader):
             # TODO: Fix dimensions here.
             det_pred, p_pred, s_pred = model(batch["X"].to(model.device))
 
-            predictions.append(torch.stack((p_pred, s_pred), dim=1).numpy())
+            predictions.append(torch.stack((p_pred, s_pred), dim=1).cpu().numpy())
             targets.append(batch["y"].numpy())
 
     return {"predictions": np.vstack(predictions), "targets": np.concatenate(targets)}
