@@ -2,11 +2,11 @@
 
 python3 swag.py \
         --dir=".cache/" \
-        --dataset="Example" \
-        --dataset_path="data/STEAD/example/seisbench" \
-        --batch_size=100 \
+        --dataset="STEAD" \
+        --dataset_path="/data/STEAD_dataset/.seisbench/datasets/stead/" \
+        --batch_size=1024 \
         --model="EQTransformer" \
-        --epochs=5 \
+        --epochs=20 \
         --save_freq=5 \
         --eval_freq=1 \
         --lr_init=0.01 \
@@ -19,5 +19,6 @@ python3 swag.py \
         --max_num_models=20 \
         --loss="CE" \
         --seed=42 \
+        --num_workers=24
 
 # unused option: --no_schedule, --resumte="T", --swa_resume="T"
