@@ -328,6 +328,14 @@ for epoch in range(start_epoch, args.epochs):
         lr = args.lr_init
 
     train_res = train_epoch(model, train_loader, loss_fn, optimizer, verbose=args.verbose)
+
+    if (epoch + 1) % args.save_freq == 0 and args.swa:
+        swag.utils.save_checkpoint(
+            args.dir,
+            epoch + 1,
+            state_dict=model.state_dict(),
+            optimizer=optimizer.state_dict(),
+        )
     # Evaluate dev set on first epoch, on eval_freq, and on final epoch
     # TODO: What does eval_freq exactly mean
     if (
@@ -375,20 +383,13 @@ for epoch in range(start_epoch, args.epochs):
             # Ensure swag_res exists
             swag_res = {"loss": None, "accuracy": None}
 
-        if (epoch + 1) % args.save_freq == 0:
+        if (epoch + 1) % args.save_freq == 0 and args.swa:
             swag.utils.save_checkpoint(
                 args.dir,
                 epoch + 1,
-                state_dict=model.state_dict(),
-                optimizer=optimizer.state_dict(),
+                name="swag",
+                state_dict=swag_model.state_dict(),
             )
-            if args.swa:
-                swag.utils.save_checkpoint(
-                    args.dir,
-                    epoch + 1,
-                    name="swag",
-                    state_dict=swag_model.state_dict(),
-                )
 
         time_ep = time.time() - time_ep
 
@@ -414,7 +415,7 @@ for epoch in range(start_epoch, args.epochs):
 
         # Pretty printing current state of trairing
         table = tabulate.tabulate([values], columns, tablefmt="simple", floatfmt="8.4f")
-        if epoch % 40 == 0:
+        if epoch % 40 == 0 or epoch == args.swa_start:
             table = table.split("\n")
             table = "\n".join([table[1]] + table)
         else:
