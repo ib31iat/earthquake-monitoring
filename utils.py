@@ -22,7 +22,7 @@ def train_epoch(model, dataloader, loss_fn, optimizer, verbose=False):
     loss = 0.0
 
     if verbose:
-        pbar = tqdm(dataloader)
+        pbar = tqdm(dataloader, leave=False)
     else:
         pbar = dataloader
 
@@ -58,7 +58,7 @@ def test_loop(model, dataloader, loss_fn, verbose=False):
     model.eval()  # close the model for evaluation
 
     if verbose:
-        pbar = tqdm(dataloader)
+        pbar = tqdm(dataloader, leave=False)
     else:
         pbar = dataloader
 
@@ -87,7 +87,7 @@ def test_loop(model, dataloader, loss_fn, verbose=False):
 
     # TODO: test_loss is averaged over number of batches
     test_loss /= num_batches
-    # TODO: Add args.verbose
+
     if verbose:
         print(f"Test avg loss: {test_loss:>8f}\n")
     return {"loss": test_loss, "accuracy": None}
