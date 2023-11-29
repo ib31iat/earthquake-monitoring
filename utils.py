@@ -35,8 +35,7 @@ def train_epoch(model, dataloader, loss_fn, optimizer, verbose=False):
         pred = model(batch["X"].to(model.device))
 
         loss = loss_fn(
-            pred, batch["y"].to(model.device),
-            batch["detections"].to(model.device)
+            pred, batch["y"].to(model.device), batch["detections"].to(model.device)
         )
 
         # Backpropagation
@@ -72,9 +71,17 @@ def test_loop(model, dataloader, loss_fn, verbose=False):
 
             # HACK: See above.
             if isinstance(model, SWAG):
-                test_loss += loss_fn(pred, batch["y"].to(model.base.device), batch["detections"].to(model.base.device)).item()
+                test_loss += loss_fn(
+                    pred,
+                    batch["y"].to(model.base.device),
+                    batch["detections"].to(model.base.device),
+                ).item()
             else:
-                test_loss += loss_fn(pred, batch["y"].to(model.device), batch["detections"].to(model.device)).item()
+                test_loss += loss_fn(
+                    pred,
+                    batch["y"].to(model.device),
+                    batch["detections"].to(model.device),
+                ).item()
 
     model.train()  # re-open model for training stage
 
@@ -88,7 +95,6 @@ def test_loop(model, dataloader, loss_fn, verbose=False):
 
 def predict(model, dataloader):
     """Convenience function for predicting values in `dataloader' using `model'.  Returns a dictionary with keys 'predicitions' and 'targets'"""
-    # Effectively swa_gaussian/utils.predict
     predictions = []
     targets = []
 
@@ -96,10 +102,34 @@ def predict(model, dataloader):
 
     with torch.no_grad():
         for batch in dataloader:
-            # TODO: Fix dimensions here.
+            # TODO: window_borders does not exist for us.
+            # window_borders = batch["window_borders"]
+
             det_pred, p_pred, s_pred = model(batch["X"].to(model.device))
 
-            predictions.append(torch.stack((p_pred, s_pred), dim=1).cpu().numpy())
+            score_detection = torch.zeros(det_pred.shape[0])
+            score_p_or_s = torch.zeros(det_pred.shape[0])
+            p_sample = torch.zeros(det_pred.shape[0], dtype=int)
+            s_sample = torch.zeros(det_pred.shape[0], dtype=int)
+            for i in range(det_pred.shape[0]):
+                # TODO In pick-benchmark every batch as a "window_borders" property that is used here, but we do not have that (?) so I am just using the full rage instead.
+                # start_sample, end_sample = window_borders[i]
+                local_det_pred = det_pred[i, :]
+                local_p_pred = p_pred[i, :]
+                local_s_pred = s_pred[i, :]
+
+                score_detection[i] = torch.max(local_det_pred)
+                score_p_or_s[i] = torch.max(local_p_pred) / torch.max(
+                    local_s_pred
+                )  # most likely P by most likely S
+
+                p_sample[i] = torch.argmax(local_p_pred)
+                s_sample[i] = torch.argmax(local_s_pred)
+
+            # TODO Also see notebook for usage
+            predictions.append(
+                torch.stack((score_detection, p_sample, s_sample), dim=1).cpu()
+            )
             targets.append(batch["y"].numpy())
 
     return {"predictions": np.vstack(predictions), "targets": np.concatenate(targets)}
@@ -280,6 +310,7 @@ def preprocess(data, batch_size, num_workers):
 
 def make_loss_fn(loss_fn):
     """Adapes `loss_fn' (e.g. torch.F.cross_entropy or torch.nn.BCELoss) to be compatible with EQTransformer output."""
+
     def f(pred, y_true, det_true):
         # vector cross entropy loss
         p_true = y_true[:, 0]

@@ -4,3 +4,6 @@
 [submodule "external/swa_gaussian"]
 	path = external/swa_gaussian
 	url = https://github.com/Herbsi/swa_gaussian
+[submodule "external/pick-benchmark"]
+	path = external/pick-benchmark
+	url = https://github.com/seisbench/pick-benchmark
