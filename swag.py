@@ -255,11 +255,9 @@ def schedule(epoch):
     return args.lr_init * factor
 
 
-optimizer = torch.optim.SGD(
+optimizer = torch.optim.Adam(
     model.parameters(),
     lr=args.lr_init,
-    momentum=args.momentum,
-    weight_decay=args.wd,
 )
 
 # TODO: Respect passed argument
