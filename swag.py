@@ -366,7 +366,7 @@ for epoch in range(start_epoch, args.epochs):
         if (
             epoch == 0
             or epoch % args.eval_freq == args.eval_freq - 1
-            or epoch == args.epoch - 1
+            or epoch == args.epochs - 1
         ):
             # TODO: Why do the original authors use 0.0 as the argument?
             swag_model.sample(0.0)
