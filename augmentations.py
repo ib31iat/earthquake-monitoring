@@ -4,10 +4,10 @@ import copy
 
 class ChangeChannels:
     """
-    Copies the data while changing the data type to the provided one
+    Copies the data while changing to one channel
 
     :param channel_to_keep: Channel to keep
-    :type dtype: numpy.dtype
+    :type channel_to_keep: int
     :param key: The keys for reading from and writing to the state dict.
     :type key: str
     """
@@ -26,6 +26,30 @@ class ChangeChannels:
     def __str__(self):
         return (
             f"ChangeChannels (channel_to_keep={self.channel_to_keep}, key={self.key})"
+        )
+
+class StoreMetadata:
+    """
+    Moves desired metadata to the data part to keep it
+
+    :param metadata_to_keep: Metadata key to keep (https://seisbench.readthedocs.io/en/stable/pages/data_format.html#trace-parameters)
+    :type metadata_to_keep: str
+    :param key: The keys for reading from and writing to the state dict.
+    :type key: str
+    """
+
+    def __init__(self, metadata_to_keep, key="X"):
+        assert isinstance(key, str)
+        self.key = key
+        self.metadata_to_keep = metadata_to_keep
+
+    def __call__(self, state_dict):
+        x, metadata = state_dict[self.key]
+        state_dict[self.metadata_to_keep] = metadata[self.metadata_to_keep], metadata
+
+    def __str__(self):
+        return (
+            f"Keeps metadata key {self.metadata_to_keep} from key={self.key})"
         )
 
 
