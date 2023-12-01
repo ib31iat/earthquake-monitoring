@@ -105,7 +105,12 @@ def predict(model, dataloader):
             # TODO: window_borders does not exist for us.
             # window_borders = batch["window_borders"]
 
-            det_pred, p_pred, s_pred = model(batch["X"].to(model.device))
+            if isinstance(model, SWAG):
+                det_pred, p_pred, s_pred = model(batch["X"].to(model.base.device))
+
+            else:
+                det_pred, p_pred, s_pred = model(batch["X"].to(model.device))
+
 
             score_detection = torch.zeros(det_pred.shape[0])
             score_p_or_s = torch.zeros(det_pred.shape[0])
