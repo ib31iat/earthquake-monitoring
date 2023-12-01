@@ -11,7 +11,7 @@ from seisbench.util import worker_seeding
 from swag.posteriors import SWAG
 import seisbench.generate as sbg
 from torch.utils.data import DataLoader
-from augmentations import ChangeChannels, DuplicateEvent
+from augmentations import ChangeChannels, DuplicateEvent, StoreMetadata
 
 """Separate file for keeping some functions.  Arguably, these could just live in main.py, but this way they should be directly usable in a jupyter notebook via `import utils`."""
 
@@ -264,6 +264,21 @@ def preprocess(data, batch_size, num_workers):
 
         return block1 + block2
 
+    def get_eval_augmentations():
+        p_phases = [key for key, val in phase_dict.items() if val == "P"]
+        s_phases = [key for key, val in phase_dict.items() if val == "S"]
+        detection_labeller = sbg.DetectionLabeller(
+            p_phases, s_phases=s_phases, key=("X", "detections")
+        )
+        return [
+            sbg.ProbabilisticLabeller(label_columns=phase_dict, sigma=20, dim=0),
+            detection_labeller,
+            StoreMetadata("trace_snr_db"),
+            sbg.ChangeDtype(np.float32),
+            ChangeChannels(0),
+            sbg.Normalize(detrend_axis=-1, amp_norm_axis=-1, amp_norm_type="peak"),
+        ]
+
     ################################################################################
     # Apply augmentations
     ################################################################################
@@ -276,7 +291,7 @@ def preprocess(data, batch_size, num_workers):
 
     train_generator.add_augmentations(get_train_augmentations(rotate_array=True))
     dev_generator.add_augmentations(get_val_augmentations())
-    test_generator.add_augmentations(get_val_augmentations())
+    test_generator.add_augmentations(get_eval_augmentations())
 
     # picks = {}
     # for i in range(0, 6000, 100):
