@@ -35,8 +35,8 @@ def main():
         pickle.dump(metrics, f, pickle.HIGHEST_PROTOCOL)
 
     with open('eqt_swag_metrics.pickle', 'wb') as f:
-        model.sample(1.0)
-        metrics = eval(model, data.test(), batch_size=512, num_workers=24)
+        swag_model.sample(1.0)
+        metrics = eval(swag_model, data.test(), batch_size=512, num_workers=24)
         pickle.dump(metrics, f, pickle.HIGHEST_PROTOCOL)
 
 
