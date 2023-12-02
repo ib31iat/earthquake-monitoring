@@ -70,6 +70,8 @@ def eval(
     Keys in result:
     - det_precision_score
     -"""
+    print("Enter eval.")
+    print("Load data.")
     data_generator = sbg.GenericGenerator(data)
     data_generator.add_augmentations(get_eval_augmentations())
     data_loader = DataLoader(
@@ -84,6 +86,7 @@ def eval(
     p_true = []
     s_true = []
 
+    print("Build ground truth.")
     for idx in range(len(data)):
         _, metadata = data.get_sample(idx)
         det = metadata["trace_category"] == "earthquake_local"
@@ -94,11 +97,23 @@ def eval(
         p_true.append(p)
         s_true.append(s)
 
+    p_true = np.array(p_true)
+    s_true = np.array(s_true)
+
+    print("Run predictions.")
     predictions = predict(model, data_loader)["predictions"]
     det_pred = predictions[:, 0]
     p_pred = predictions[:, 1]
     s_pred = predictions[:, 2]
 
+    # Remove predictions that come from noise.
+    nans = p_true[p_true.isnan]
+    p_true = p_true[~nans]
+    s_true = s_true[~nans]
+    p_pred = p_pred[~nans]
+    s_pred = s_pred[~nans]
+
+    print("Evaluate predictions.")
     det_roc = roc_curve(det_true, det_pred)
 
     # NOTE: detection_threshold is a hyperparamater
