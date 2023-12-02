@@ -107,7 +107,7 @@ def eval(
     s_pred = predictions[:, 2]
 
     # Remove predictions that come from noise.
-    nans = p_true[p_true.isnan]
+    nans = np.isnan(p_true)
     p_true = p_true[~nans]
     s_true = s_true[~nans]
     p_pred = p_pred[~nans]
