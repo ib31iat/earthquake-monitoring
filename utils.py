@@ -16,7 +16,7 @@ from augmentations import ChangeChannels, DuplicateEvent, StoreMetadata
 """Separate file for keeping some functions.  Arguably, these could just live in main.py, but this way they should be directly usable in a jupyter notebook via `import utils`."""
 
 
-def train_epoch(model, dataloader, loss_fn, optimizer, verbose=False):
+def train_epoch(model, dataloader, loss_fn, optimizer, epoch, verbose=False):
     model.train()
     loss_sum = 0.0
     loss = 0.0
@@ -29,7 +29,7 @@ def train_epoch(model, dataloader, loss_fn, optimizer, verbose=False):
     for batch in pbar:
         # Update progress bar description
         if verbose:
-            pbar.set_description(f"loss: {loss:>7f}")
+            pbar.set_description(f"epoch: {epoch}, loss: {loss:>7f}")
             pbar.refresh()
         # Compute prediction and loss
         pred = model(batch["X"].to(model.device))

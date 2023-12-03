@@ -327,7 +327,7 @@ for epoch in range(start_epoch, args.epochs):
     else:
         lr = args.lr_init
 
-    train_res = train_epoch(model, train_loader, loss_fn, optimizer, verbose=args.verbose)
+    train_res = train_epoch(model, train_loader, loss_fn, optimizer, epoch, verbose=args.verbose)
 
     if (epoch + 1) % args.save_freq == 0 and args.swa:
         swag.utils.save_checkpoint(
