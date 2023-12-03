@@ -96,11 +96,17 @@ def eval(
         det = metadata["trace_category"] == "earthquake_local"
         p = metadata["trace_p_arrival_sample"]
         s = metadata["trace_s_arrival_sample"]
+        local_snr = metadata["trace_snr_db"]
+        if isinstance(local_snr, str):
+            # TODO: This parse code does not work because some samples look like this: [ 6.69999981 10.39999962 10.10000038]
+            local_snr = float(local_snr.replace('[', '').replace(']','').strip().split(' ')[0])
+        else:
+            local_snr = 0.0
 
         det_true.append(det)
         p_true.append(p)
         s_true.append(s)
-        snr.append(metadata["trace_snr"])
+        snr.append(local_snr)
 
     p_true = np.array(p_true)
     s_true = np.array(s_true)
