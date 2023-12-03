@@ -129,6 +129,17 @@ def eval(
         # TODO Mousavi, et. al also report Precision, Recall, and F1 for the regression, which I do not know how to interpret.
         for name, metric in [("mu", np.mean), ("std", np.std)]:
             results[f"{pick}_{name}"] = metric(true - pred)
+
+        tn, fp, fn, tp = results["confusion_matrix"].ravel()
+
+        diff = true - pred
+        # This value is always <= the number of true positives of the detection
+        tp = np.count_nonzero(np.abs(diff) < 50) # 0.5s == 50 samples
+
+        results[f"{pick}_precision"] = tp / (tp + fp)
+        results[f"{pick}_recall"] = tp / (tp + fn)
+        results[f"{pick}_f1"] = 2 * tp / (2 * tp + fp + fn)
+
         for name, metric in [
             ("MAE", mean_absolute_error),
             ("MAPE", mean_absolute_percentage_error),
