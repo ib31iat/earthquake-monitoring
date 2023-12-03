@@ -31,12 +31,12 @@ def main():
     swag_model.load_state_dict(checkpoint["state_dict"], strict=False)
 
     with open('eqt_metrics.pickle', 'wb') as f:
-        metrics = eval(model, data.test(), batch_size=512, num_workers=24)
+        metrics = eval(model, data.test(), batch_size=512, num_workers=24, residuals_output_dir="residuals/eqt")
         pickle.dump(metrics, f, pickle.HIGHEST_PROTOCOL)
 
     with open('eqt_swag_metrics.pickle', 'wb') as f:
         swag_model.sample(1.0)
-        metrics = eval(swag_model, data.test(), batch_size=512, num_workers=24)
+        metrics = eval(swag_model, data.test(), batch_size=512, num_workers=24, residuals_output_dir="residuals/swag")
         pickle.dump(metrics, f, pickle.HIGHEST_PROTOCOL)
 
 

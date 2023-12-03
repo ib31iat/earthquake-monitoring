@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 
 
@@ -64,6 +66,7 @@ def eval(
     batch_size=100,
     num_workers=0,
     detection_threshold: float = 0.5,
+    residuals_output_dir=None,
 ):
     """Evaluate model on data and return a bunch of resulting metrics.
 
@@ -85,6 +88,7 @@ def eval(
     det_true = []
     p_true = []
     s_true = []
+    snr = []
 
     print("Build ground truth.")
     for idx in range(len(data)):
@@ -96,9 +100,11 @@ def eval(
         det_true.append(det)
         p_true.append(p)
         s_true.append(s)
+        snr.append(metadata["trace_snr"])
 
     p_true = np.array(p_true)
     s_true = np.array(s_true)
+    snr = np.array(snr)
 
     print("Run predictions.")
     predictions = predict(model, data_loader)["predictions"]
@@ -112,6 +118,7 @@ def eval(
     s_true = s_true[~nans]
     p_pred = p_pred[~nans]
     s_pred = s_pred[~nans]
+    snr = snr[~nans]
 
     print("Evaluate predictions.")
     det_roc = roc_curve(det_true, det_pred)
@@ -134,5 +141,13 @@ def eval(
             ("MAPE", mean_absolute_percentage_error),
         ]:
             results[f"{pick}_{name}"] = metric(true, pred)
+
+    if residuals_output_dir is not None:
+        with open(os.path.join(residuals_output_dir, "p_residuals.npz")) as f:
+            np.save(f, p_true - p_pred)
+        with open(os.path.join(residuals_output_dir, "s_residuals.npz")) as f:
+            np.save(f, s_true - s_pred)
+        with open(os.path.join(residuals_output_dir, "snr.npz")) as f:
+            np.save(f, snr)
 
     return results
