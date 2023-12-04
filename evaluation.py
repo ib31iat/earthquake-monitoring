@@ -1,5 +1,3 @@
-import os
-
 import numpy as np
 
 
@@ -67,7 +65,6 @@ def eval(
     batch_size=100,
     num_workers=0,
     detection_threshold: float = 0.5,
-    residuals_output_dir=None,
 ):
     """Evaluate model on data and return a bunch of resulting metrics.
 
@@ -149,12 +146,8 @@ def eval(
         ]:
             results[f"{pick}_{name}"] = metric(true, pred)
 
-    if residuals_output_dir is not None:
-        with open(os.path.join(residuals_output_dir, "p_residuals.npz")) as f:
-            np.save(f, p_true - p_pred)
-        with open(os.path.join(residuals_output_dir, "s_residuals.npz")) as f:
-            np.save(f, s_true - s_pred)
-        with open(os.path.join(residuals_output_dir, "snr.npz")) as f:
-            np.save(f, snr)
+    results["p_res"] = p_true - p_pred
+    results["s_res"] = s_true - s_pred
+    results["snr"] = snr
 
     return results
