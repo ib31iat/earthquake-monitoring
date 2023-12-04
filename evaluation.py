@@ -11,6 +11,7 @@ from sklearn.metrics import (
     f1_score,
     mean_absolute_error,
     mean_absolute_percentage_error,
+    mean_squared_error,
 )
 from torch.utils.data import DataLoader
 
@@ -139,12 +140,12 @@ def eval(
         results[f"det_{det_metric.__name__}"] = det_metric(det_true, det_pred)
 
     for pick, true, pred in [("p", p_true, p_pred), ("s", s_true, s_pred)]:
-        # TODO Mousavi, et. al also report Precision, Recall, and F1 for the regression, which I do not know how to interpret.
         for name, metric in [("mu", np.mean), ("std", np.std)]:
             results[f"{pick}_{name}"] = metric(true - pred)
         for name, metric in [
             ("MAE", mean_absolute_error),
             ("MAPE", mean_absolute_percentage_error),
+            ("RMSE", lambda true, pred: mean_squared_error(true, pred, squared=True))
         ]:
             results[f"{pick}_{name}"] = metric(true, pred)
 
