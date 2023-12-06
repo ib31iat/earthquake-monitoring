@@ -29,7 +29,7 @@ def train_epoch(model, dataloader, loss_fn, optimizer, epoch, verbose=False):
     for batch in pbar:
         # Update progress bar description
         if verbose:
-            pbar.set_description(f"epoch: {epoch}, loss: {loss:>7f}")
+            pbar.set_description(f"epoch: {epoch+1}, loss: {loss:>7f}")
             pbar.refresh()
         # Compute prediction and loss
         pred = model(batch["X"].to(model.device))
