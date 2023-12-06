@@ -11,7 +11,7 @@ from seisbench.util import worker_seeding
 from swag.posteriors import SWAG
 import seisbench.generate as sbg
 from torch.utils.data import DataLoader
-from augmentations import ChangeChannels, DuplicateEvent, StoreMetadata
+from code.utils.augmentations import ChangeChannels, DuplicateEvent, StoreMetadata
 
 """Separate file for keeping some functions.  Arguably, these could just live in main.py, but this way they should be directly usable in a jupyter notebook via `import utils`."""
 
