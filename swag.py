@@ -12,7 +12,7 @@ import torch
 import torch.nn.functional as F
 
 from seisbench.data import WaveformDataset
-from seisbench.models import EQTransformer
+from seisbench.models import EQTransformer, EQTransformerReducedEncoder, EQTransformerNoResLSTM
 
 import swag
 from swag.posteriors import SWAG
@@ -206,6 +206,10 @@ print(f"Using model {args.model}")
 if args.model == "EQTransformer":
     # TODO: Try pretrained EQTransformer
     model_cfg = EQTransformer
+elif args.model == "EQTransformerReducedEncoder":
+    model_cfg = EQTransformerReducedEncoder,
+elif args.model == "EQTransformerNoResLSTM":
+    model_cfg =  EQTransformerNoResLSTM
 else:
     # TODO: Better / different error handling
     print("Error.  Only --model=EQTransformer is supported at the moment.")
