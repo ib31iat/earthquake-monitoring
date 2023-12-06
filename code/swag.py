@@ -17,7 +17,7 @@ from seisbench.models import EQTransformer, EQTransformerReducedEncoder, EQTrans
 import swag
 from swag.posteriors import SWAG
 
-from utils import train_epoch, test_loop, predict, preprocess, make_loss_fn
+from utils.utils import train_epoch, test_loop, predict, preprocess, make_loss_fn
 
 
 # Argument Parsing

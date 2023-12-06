@@ -17,8 +17,8 @@ import seisbench.generate as sbg
 from seisbench.data import WaveformDataset
 from seisbench.util import worker_seeding
 
-from augmentations import ChangeChannels
-from utils import predict
+from .augmentations import ChangeChannels
+from .utils import predict
 
 phase_dict = {
     "trace_p_arrival_sample": "P",

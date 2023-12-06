@@ -10,7 +10,7 @@ import swag
 
 from seisbench.data import WaveformDataset
 from seisbench.models import EQTransformer
-from evaluation import eval
+from utils.evaluation import eval
 
 
 def main():
