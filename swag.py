@@ -221,6 +221,8 @@ print("Preparing model")
 # TODO: Pass arguments to EQTransformer
 model = model_cfg(in_channels=1)
 model.to(args.device)
+if args.verbose:
+    print(model)
 
 if args.cov_mat:
     args.no_cov_mat = False
