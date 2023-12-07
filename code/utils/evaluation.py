@@ -1,6 +1,5 @@
 import numpy as np
 
-
 from sklearn.metrics import (
     confusion_matrix,
     roc_curve,
@@ -124,24 +123,26 @@ def calculate_metrics(true, pred, snr, detection_threshold):
     (det_true, p_true, s_true) = true
     (det_pred, p_pred, s_pred) = pred
 
-    print("Evaluate predictions.")
     det_roc = roc_curve(det_true, det_pred.copy())
 
     det_pred = np.ceil(det_pred - detection_threshold)
 
     # Remove nans (corresponding to noise) and picks of quakes we did not actually detect.
     nans = np.isnan(p_true)
-    p_true = p_true[~nans & (det_pred > 0)]
-    s_true = s_true[~nans & (det_pred > 0)]
-    p_pred = p_pred[~nans & (det_pred > 0)]
-    s_pred = s_pred[~nans & (det_pred > 0)]
-    snr = snr[~nans & (det_pred > 0)]
+    p_true = p_true[~nans]
+    s_true = s_true[~nans]
+    p_pred = p_pred[~nans]
+    s_pred = s_pred[~nans]
+    snr = snr[~nans]
 
     results = dict()
 
     results["det_roc"] = det_roc
-    for det_metric in [confusion_matrix, precision_score, recall_score, f1_score]:
-        results[f"det_{det_metric.__name__}"] = det_metric(det_true, det_pred)
+    results["det_confusion_matrix"] = confusion_matrix(det_true, det_pred)
+    for det_metric in [precision_score, recall_score, f1_score]:
+        results[f"det_{det_metric.__name__}"] = det_metric(
+            det_true, det_pred, zero_division=1
+        )
 
     for pick, true, pred in [("p", p_true, p_pred), ("s", s_true, s_pred)]:
         for name, metric in [("mu", np.mean), ("std", np.std)]:
