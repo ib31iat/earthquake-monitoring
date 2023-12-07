@@ -34,3 +34,18 @@ def residual_histogram(metrics, axs=None, **kwargs):
     axs[0, 1].scatter(snr[p_indices][::100], p_res[p_indices][::100])
     axs[1, 1].scatter(snr[s_indices][::100], s_res[s_indices][::100])
 
+
+def residual_ecdf(metrics, axs=None, **kwargs):
+    # Put P/S picks on seconds scale
+    p_res = metrics["p_res"] / 100
+    s_res = metrics["s_res"] / 100
+
+    p_indices = np.abs(p_res) < 1
+    s_indices = np.abs(s_res) < 1
+
+    axs[0].set_ylabel("P Picks ECDF")
+    axs[0].ecdf(np.abs(p_res[p_indices]))
+
+    axs[1].set_ylabel("S Picks ECDF")
+    axs[1].ecdf(np.abs(s_res[s_indices]))
+
