@@ -64,6 +64,7 @@ def run_eval(
     batch_size=100,
     num_workers=0,
     detection_threshold: float = 0.5,
+    num_predictions: int = 20,
 ):
     """Evaluate model on data and return a bunch of resulting metrics.
 
@@ -111,10 +112,18 @@ def run_eval(
     snr = np.array(snr)
 
     print("Calculate predictions.")
-    predictions = predict(model, data_loader)["predictions"]
-    det_pred = predictions[:, 0]
-    p_pred = predictions[:, 1]
-    s_pred = predictions[:, 2]
+    det_preds = []
+    p_preds = []
+    s_preds = []
+    for _ in range(num_predictions):
+        predictions = predict(model, data_loader)["predictions"]
+        det_pred.append(predictions[:, 0])
+        p_pred.append(predictions[:, 1])
+        s_pred.append(predictions[:, 2])
+
+    det_preds = np.array(det_preds)
+    p_preds = np.array(p_preds)
+    s_preds = np.array(s_preds)
 
     return ((det_true, p_true, s_true), (det_pred, p_pred, s_pred), snr)
 

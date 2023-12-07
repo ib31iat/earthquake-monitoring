@@ -86,6 +86,8 @@ def main():
         with open(output_dir / f"{args.model}_{desc}.pickle", "wb") as f:
             pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
 
+    # TODO: need adaption here: atm just take the first of every item
+    pred = (pred[0][0], pred[1][0], pred[2][0])
     metrics = calculate_metrics(true, pred, snr, 0.5)
 
     with open(output_dir / f"{args.model}_metrics.pickle", "wb") as f:
