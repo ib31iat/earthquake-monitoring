@@ -124,25 +124,18 @@ def calculate_metrics(true, pred, snr, detection_threshold):
     (det_true, p_true, s_true) = true
     (det_pred, p_pred, s_pred) = pred
 
-    # Remove predictions that come from noise.
-    nans = np.isnan(p_true)
-    p_true = p_true[~nans]
-    s_true = s_true[~nans]
-    p_pred = p_pred[~nans]
-    s_pred = s_pred[~nans]
-    snr = snr[~nans]
-
     print("Evaluate predictions.")
     det_roc = roc_curve(det_true, det_pred.copy())
 
-    # NOTE: detection_threshold is a hyperparamater
     det_pred = np.ceil(det_pred - detection_threshold)
-    # Only use residuals from quakes we actually detected
-    p_true = p_true[(det_pred > 0)]
-    s_true = s_true[(det_pred > 0)]
-    p_pred = p_pred[(det_pred > 0)]
-    s_pred = s_pred[(det_pred > 0)]
-    snr = snr[(det_pred > 0)]
+
+    # Remove nans (corresponding to noise) and picks of quakes we did not actually detect.
+    nans = np.isnan(p_true)
+    p_true = p_true[~nans & (det_pred > 0)]
+    s_true = s_true[~nans & (det_pred > 0)]
+    p_pred = p_pred[~nans & (det_pred > 0)]
+    s_pred = s_pred[~nans & (det_pred > 0)]
+    snr = snr[~nans & (det_pred > 0)]
 
     results = dict()
 
