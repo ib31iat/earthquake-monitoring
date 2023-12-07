@@ -330,3 +330,13 @@ def make_loss_fn(loss_fn):
         )
 
     return f
+
+
+def annotate_window_post(pred, pre=200, post=200):
+    # Combine predictions in one array
+    prenan, postnan = pre, post
+    if prenan > 0:
+        pred[:prenan] = np.nan
+    if postnan > 0:
+        pred[-postnan:] = np.nan
+    return pred
