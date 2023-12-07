@@ -59,7 +59,7 @@ def get_eval_augmentations():
     ]
 
 
-def eval(
+def run_eval(
     model,
     data: WaveformDataset,
     batch_size=100,
@@ -71,7 +71,7 @@ def eval(
     Keys in result:
     - det_precision_score
     -"""
-    print("Enter eval.")
+    print("Start evaluation.")
     print("Load data.")
     data_generator = sbg.GenericGenerator(data)
     data_generator.add_augmentations(get_eval_augmentations())
@@ -96,8 +96,9 @@ def eval(
         s = metadata["trace_s_arrival_sample"]
         local_snr = metadata["trace_snr_db"]
         if isinstance(local_snr, str):
-            # TODO: This parse code does not work because some samples look like this: [ 6.69999981 10.39999962 10.10000038]
-            local_snr = float(local_snr.replace('[', '').replace(']','').strip().split(' ')[0])
+            local_snr = float(
+                local_snr.replace("[", "").replace("]", "").strip().split(" ")[0]
+            )
         else:
             local_snr = 0.0
 
@@ -110,11 +111,18 @@ def eval(
     s_true = np.array(s_true)
     snr = np.array(snr)
 
-    print("Run predictions.")
+    print("Calculate predictions.")
     predictions = predict(model, data_loader)["predictions"]
     det_pred = predictions[:, 0]
     p_pred = predictions[:, 1]
     s_pred = predictions[:, 2]
+
+    return ((det_true, p_true, s_true), (det_pred, p_pred, s_pred), snr)
+
+
+def calculate_metrics(true, pred, snr, detection_threshold):
+    (det_true, p_true, s_true) = true
+    (det_pred, p_pred, s_pred) = pred
 
     # Remove predictions that come from noise.
     nans = np.isnan(p_true)
@@ -125,10 +133,16 @@ def eval(
     snr = snr[~nans]
 
     print("Evaluate predictions.")
-    det_roc = roc_curve(det_true, det_pred)
+    det_roc = roc_curve(det_true, det_pred.copy())
 
     # NOTE: detection_threshold is a hyperparamater
     det_pred = np.ceil(det_pred - detection_threshold)
+    # Only use residuals from quakes we actually detected
+    p_true = p_true[(det_pred > 0)]
+    s_true = s_true[(det_pred > 0)]
+    p_pred = p_pred[(det_pred > 0)]
+    s_pred = s_pred[(det_pred > 0)]
+    snr = snr[(det_pred > 0)]
 
     results = dict()
 
@@ -142,7 +156,7 @@ def eval(
         for name, metric in [
             ("MAE", mean_absolute_error),
             ("MAPE", mean_absolute_percentage_error),
-            ("RMSE", lambda true, pred: mean_squared_error(true, pred, squared=True))
+            ("RMSE", lambda true, pred: mean_squared_error(true, pred, squared=False)),
         ]:
             results[f"{pick}_{name}"] = metric(true, pred)
 

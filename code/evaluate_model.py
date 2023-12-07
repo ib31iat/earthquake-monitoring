@@ -9,7 +9,7 @@ import torch
 import swag
 
 from seisbench.data import WaveformDataset
-from utils.evaluation import eval
+from utils.evaluation import run_eval, calculate_metrics
 from utils.utils import MODELS
 
 
@@ -48,7 +48,7 @@ def main():
         type=int,
         default=1,
         required=False,
-        help="number of evaluations to use for uncertainty estimation (default: 1)"
+        help="number of evaluations to use for uncertainty estimation (default: 1)",
     )
     parser.add_argument(
         "--output_dir",
@@ -77,23 +77,31 @@ def main():
     checkpoint = torch.load(args.swag_path)
     swag_model.load_state_dict(checkpoint["state_dict"], strict=False)
 
-    metrics = eval(model, data.test(), batch_size=512, num_workers=24)
+    true, pred, snr = run_eval(model, data.test(), batch_size=512, num_workers=24)
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    with open(output_dir / 'eqt_metrics.pickle', 'wb') as f:
+
+    for obj, desc in [(true, "true"), (pred, "pred"), (snr, "snr")]:
+        with open(output_dir / f"{args.model}_{desc}.pickle", "wb") as f:
+            pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+    metrics = calculate_metrics(true, pred, snr, 0.5)
+
+    with open(output_dir / f"{args.model}_metrics.pickle", "wb") as f:
         pickle.dump(metrics, f, pickle.HIGHEST_PROTOCOL)
 
     def metrics_gen():
         for _ in range(args.no_of_swag_evaluations):
             swag_model.sample(1.0)
-            metrics = eval(swag_model, data.test(), batch_size=512, num_workers=24)
+            true, pred, snr = run_eval(swag_model, data.test(), batch_size=512, num_workers=24)
+            metrics = calculate_metrics(true, pred, snr, 0.5)
             yield metrics
 
     df = pd.DataFrame(metrics_gen())
-    with open(output_dir / 'eqt_swag_metrics.pickle', 'wb') as f:
+    with open(output_dir / f"{args.model}_swag_metrics.pickle", "wb") as f:
         pickle.dump(df, f, pickle.HIGHEST_PROTOCOL)
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     main()
