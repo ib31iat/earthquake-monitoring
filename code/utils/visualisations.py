@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import ConfusionMatrixDisplay, auc
+from .evaluation import calculate_metrics
 
 """Module for defining various visualisations.
 
@@ -60,3 +61,38 @@ def roc_plot(metrics, ax=None, **kwargs):
     # ax.set_yscale("log")
     ax.set_xlabel("False Positive Rate")
     ax.set_ylabel("True Positive Rate")
+
+
+desc = {
+    "det_precision_score": "Precision",
+    "det_recall_score": "Recall",
+    "det_f1_score": "F1",
+}
+
+
+def detection_treshold_vs_metric(true, pred, snr, metric_key, ax=None):
+    def values():
+        for det_treshold in np.linspace(0, 1, num=50):
+            yield (
+                det_treshold,
+                calculate_metrics(true, pred, snr, det_treshold)[metric_key],
+            )
+
+    ax.set_xlabel("Detection Treshold")
+    ax.set_ylabel(desc[metric_key])
+    ax.set_yscale("log")
+    ax.set_xlim(0, 1)
+    ax.set_ylim(top=1)
+    ax.plot(*zip(*values()))
+
+
+def detection_treshold_vs_prec(*args, **kwargs):
+    detection_treshold_vs_metric(*args, metric_key="det_precision_score", **kwargs)
+
+
+def detection_treshold_vs_det_recall(*args, **kwargs):
+    detection_treshold_vs_metric(*args, metric_key="det_recall_score", **kwargs)
+
+
+def detection_treshold_vs_f1(*args, **kwargs):
+    detection_treshold_vs_metric(*args, metric_key="det_f1_score", **kwargs)
