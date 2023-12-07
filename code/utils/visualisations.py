@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.metrics import ConfusionMatrixDisplay
+from sklearn.metrics import ConfusionMatrixDisplay, auc
 
 """Module for defining various visualisations.
 
@@ -9,6 +9,9 @@ Each function should have one required parameter `metrics`, a dictionary as retu
 
 def confusion_matrix(metrics, ax=None, **kwargs):
     confusion_matrix = metrics["det_confusion_matrix"]
-    disp = ConfusionMatrixDisplay(confusion_matrix=confusion_matrix, display_labels=np.array(["Noise", "Earthquake"]))
+    disp = ConfusionMatrixDisplay(
+        confusion_matrix=confusion_matrix,
+        display_labels=np.array(["Noise", "Earthquake"]),
+    )
     disp.plot(ax=ax, **kwargs)
 
