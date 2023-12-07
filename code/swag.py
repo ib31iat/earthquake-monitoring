@@ -12,12 +12,23 @@ import torch
 import torch.nn.functional as F
 
 from seisbench.data import WaveformDataset
-from seisbench.models import EQTransformer, EQTransformerReducedEncoder, EQTransformerNoResLSTM
+from seisbench.models import (
+    EQTransformer,
+    EQTransformerReducedEncoder,
+    EQTransformerNoResLSTM,
+)
 
 import swag
 from swag.posteriors import SWAG
 
-from utils.utils import train_epoch, test_loop, predict, preprocess, make_loss_fn, MODELS
+from utils.utils import (
+    train_epoch,
+    test_loop,
+    predict,
+    preprocess,
+    make_loss_fn,
+    MODELS,
+)
 
 
 # Argument Parsing
@@ -171,9 +182,7 @@ parser.add_argument(
     "--num_workers", type=int, default=0, help="Number of Workers (default: 0)"
 )
 
-parser.add_argument(
-    "--verbose", action="store_true", help="Verbose training)"
-)
+parser.add_argument("--verbose", action="store_true", help="Verbose training)")
 
 parser.add_argument(
     "--no_schedule",
@@ -323,7 +332,9 @@ for epoch in range(start_epoch, args.epochs):
     else:
         lr = args.lr_init
 
-    train_res = train_epoch(model, train_loader, loss_fn, optimizer, epoch, verbose=args.verbose)
+    train_res = train_epoch(
+        model, train_loader, loss_fn, optimizer, epoch, verbose=args.verbose
+    )
 
     if (epoch + 1) % args.save_freq == 0 and args.swa:
         swag.utils.save_checkpoint(

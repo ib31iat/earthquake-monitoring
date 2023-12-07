@@ -28,6 +28,7 @@ class ChangeChannels:
             f"ChangeChannels (channel_to_keep={self.channel_to_keep}, key={self.key})"
         )
 
+
 class StoreMetadata:
     """
     Moves desired metadata to the data part to keep it
@@ -48,9 +49,7 @@ class StoreMetadata:
         state_dict[self.metadata_to_keep] = metadata[self.metadata_to_keep], metadata
 
     def __str__(self):
-        return (
-            f"Keeps metadata key {self.metadata_to_keep} from key={self.key})"
-        )
+        return f"Keeps metadata key {self.metadata_to_keep} from key={self.key})"
 
 
 class DuplicateEvent:

@@ -3,7 +3,11 @@ import torch
 
 from tqdm import tqdm
 
-from seisbench.models import EQTransformer, EQTransformerNoResLSTM, EQTransformerReducedEncoder
+from seisbench.models import (
+    EQTransformer,
+    EQTransformerNoResLSTM,
+    EQTransformerReducedEncoder,
+)
 from seisbench.util import worker_seeding
 from swag.posteriors import SWAG
 import seisbench.generate as sbg
