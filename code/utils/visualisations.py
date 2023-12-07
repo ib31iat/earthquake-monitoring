@@ -49,3 +49,14 @@ def residual_ecdf(metrics, axs=None, **kwargs):
     axs[1].set_ylabel("S Picks ECDF")
     axs[1].ecdf(np.abs(s_res[s_indices]))
 
+
+def roc_plot(metrics, ax=None, **kwargs):
+    fpr, tpr, threshold = metrics["det_roc"]
+    roc_auc = auc(fpr, tpr)
+    ax.plot(fpr, tpr, "b", label=f"AUC = {roc_auc:<.2f}")
+    ax.set_xlim([0, 1])
+    ax.set_ylim([0, 1])
+    # ax.set_xscale("log")
+    # ax.set_yscale("log")
+    ax.set_xlabel("False Positive Rate")
+    ax.set_ylabel("True Positive Rate")
