@@ -1,12 +1,9 @@
 import numpy as np
 import torch
-from matplotlib import pyplot as plt
-from math import ceil
 
-import torch.nn.functional as F
 from tqdm import tqdm
 
-from seisbench.models import EQTransformer
+from seisbench.models import EQTransformer, EQTransformerNoResLSTM, EQTransformerReducedEncoder
 from seisbench.util import worker_seeding
 from swag.posteriors import SWAG
 import seisbench.generate as sbg
@@ -14,6 +11,14 @@ from torch.utils.data import DataLoader
 from .augmentations import ChangeChannels, DuplicateEvent, StoreMetadata
 
 """Separate file for keeping some functions.  Arguably, these could just live in main.py, but this way they should be directly usable in a jupyter notebook via `import utils`."""
+
+
+# HACK: Hard-coded models as enum
+MODELS = {
+    "EQTransformer": EQTransformer,
+    "EQTransformerNoResLSTM": EQTransformerNoResLSTM,
+    "EQTransformerReducedEncoder": EQTransformerReducedEncoder,
+}
 
 
 def train_epoch(model, dataloader, loss_fn, optimizer, epoch, verbose=False):
@@ -47,7 +52,6 @@ def train_epoch(model, dataloader, loss_fn, optimizer, epoch, verbose=False):
 
         loss_sum += loss
 
-    # TODO: Also return some measure of accuracy
     return {"loss": loss_sum, "accuracy": None}
 
 
@@ -85,7 +89,6 @@ def test_loop(model, dataloader, loss_fn, verbose=False):
 
     model.train()  # re-open model for training stage
 
-    # TODO: test_loss is averaged over number of batches
     test_loss /= num_batches
 
     if verbose:
@@ -102,15 +105,10 @@ def predict(model, dataloader):
 
     with torch.no_grad():
         for batch in dataloader:
-            # TODO: window_borders does not exist for us.
-            # window_borders = batch["window_borders"]
-
             if isinstance(model, SWAG):
                 det_pred, p_pred, s_pred = model(batch["X"].to(model.base.device))
-
             else:
                 det_pred, p_pred, s_pred = model(batch["X"].to(model.device))
-
 
             score_detection = torch.zeros(det_pred.shape[0])
             score_p_or_s = torch.zeros(det_pred.shape[0])
@@ -131,22 +129,12 @@ def predict(model, dataloader):
                 p_sample[i] = torch.argmax(local_p_pred)
                 s_sample[i] = torch.argmax(local_s_pred)
 
-            # TODO Also see notebook for usage
             predictions.append(
                 torch.stack((score_detection, p_sample, s_sample), dim=1).cpu()
             )
             targets.append(batch["y"].numpy())
 
     return {"predictions": np.vstack(predictions), "targets": np.concatenate(targets)}
-
-
-def split_and_apply_generators(data):
-    train, dev, test = data.train_dev_test()
-    return {
-        "train_generator": sbg.GenericGenerator(train),
-        "dev_generator": sbg.GenericGenerator(dev),
-        "test_generator": sbg.GenericGenerator(test),
-    }
 
 
 def preprocess(data, batch_size, num_workers):
@@ -283,26 +271,15 @@ def preprocess(data, batch_size, num_workers):
     # Apply augmentations
     ################################################################################
 
-    res = split_and_apply_generators(data)
+    train, dev, test = data.train_dev_test()
 
-    train_generator = res["train_generator"]
-    dev_generator = res["dev_generator"]
-    test_generator = res["test_generator"]
+    train_generator = sbg.GenericGenerator(train)
+    dev_generator = sbg.GenericGenerator(dev)
+    test_generator = sbg.GenericGenerator(test)
 
     train_generator.add_augmentations(get_train_augmentations(rotate_array=True))
     dev_generator.add_augmentations(get_val_augmentations())
     test_generator.add_augmentations(get_eval_augmentations())
-
-    # picks = {}
-    # for i in range(0, 6000, 100):
-    #     picks[i/100] = 0
-
-    # for idx in range(len(train_generator)):
-    #     i = ceil(np.argmax(train_generator[idx]['y'][0])/100)
-    #     picks[i] = picks[i] + 1
-
-    # plt.bar(picks.keys(), picks.values())
-    # plt.show()
 
     train_loader = DataLoader(
         train_generator,

@@ -17,7 +17,7 @@ from seisbench.models import EQTransformer, EQTransformerReducedEncoder, EQTrans
 import swag
 from swag.posteriors import SWAG
 
-from utils.utils import train_epoch, test_loop, predict, preprocess, make_loss_fn
+from utils.utils import train_epoch, test_loop, predict, preprocess, make_loss_fn, MODELS
 
 
 # Argument Parsing
@@ -189,8 +189,6 @@ if use_cuda:
 else:
     args.device = torch.device("cpu")
 
-# FIXME: torch.backend does not exist
-# torch.backend.cudnn.benchmark = True
 torch.manual_seed(args.seed)
 
 if use_cuda:
@@ -203,16 +201,10 @@ with open(os.path.join(args.dir, "command.sh"), "w") as f:
     f.write("\n")
 
 print(f"Using model {args.model}")
-if args.model == "EQTransformer":
-    # TODO: Try pretrained EQTransformer
-    model_cfg = EQTransformer
-elif args.model == "EQTransformerReducedEncoder":
-    model_cfg = EQTransformerReducedEncoder,
-elif args.model == "EQTransformerNoResLSTM":
-    model_cfg =  EQTransformerNoResLSTM
-else:
-    # TODO: Better / different error handling
-    print("Error.  Only --model=EQTransformer is supported at the moment.")
+try:
+    model_cfg = MODELS[args.model]
+except KeyError:
+    print(f"Error. Model {args.model} is currently not supported.")
     sys.exit(1)
 
 print(f"Loading dataset {args.dataset} from {args.dataset_path}")
@@ -222,7 +214,6 @@ print("Preprocessing data")
 train_loader, dev_loader, _ = preprocess(data, args.batch_size, args.num_workers)
 
 print("Preparing model")
-# TODO: Pass arguments to EQTransformer
 model = model_cfg(in_channels=1)
 model.to(args.device)
 if args.verbose:
@@ -291,8 +282,7 @@ if args.swa and (args.swa_resume is not None):
         no_cov_mat=args.no_cov_mat,
         max_num_models=args.max_num_models,
         loading=True,
-        # TODO: pass arguments to model
-        # TODO: pass keyword arguments to model
+        in_channels=1,
     )
     swag_model.to(args.device)
     swag_model.load_state_dict(checkpoint["state_dict"])
@@ -380,9 +370,7 @@ for epoch in range(start_epoch, args.epochs):
             or epoch % args.eval_freq == args.eval_freq - 1
             or epoch == args.epochs - 1
         ):
-            # TODO: Why do the original authors use 0.0 as the argument?
             swag_model.sample(0.0)
-            # NOTE: At some point it might be just easier to reimplement SWAG ourselves; I am doing that partially with train_epoch, test_loop, and predict already anyway.
             swag.utils.bn_update(train_loader, swag_model)
             swag_res = test_loop(swag_model, dev_loader, loss_fn, verbose=args.verbose)
         else:
@@ -440,11 +428,3 @@ if args.epochs % args.save_freq != 0:
         swag.utils.save_checkpoint(
             args.dir, epoch + 1, name="swag", state_dict=swag_model.state_dict()
         )
-
-# Save predictions
-if args.swa:
-    np.savez(
-        os.path.join(args.dir, "sgd_ens_preds.npz"),
-        predictions=sgd_ens_preds,
-        targets=sgd_targets,
-    )

@@ -9,8 +9,8 @@ import torch
 import swag
 
 from seisbench.data import WaveformDataset
-from seisbench.models import EQTransformer
 from utils.evaluation import eval
+from utils.utils import MODELS
 
 
 def main():
@@ -23,11 +23,18 @@ def main():
         help="training directory (default: None)",
     )
     parser.add_argument(
-        "--eqt_path",
+        "--model",
+        type=str,
+        default="EQTransformer",
+        required=True,
+        help="model (default: EQTransformer)",
+    )
+    parser.add_argument(
+        "--model_path",
         type=str,
         default=None,
         required=True,
-        help="path to eqt file (default: None)",
+        help="path to model file (default: None)",
     )
     parser.add_argument(
         "--swag_path",
@@ -52,18 +59,17 @@ def main():
     )
     args = parser.parse_args()
 
-    # Load STEAD data
-    data_path = args.data_dir
-    data = WaveformDataset(data_path)
+    # Load (entire) dataset
+    data = WaveformDataset(args.data_dir)
 
-    # Load trained EQTransformer
-    model = EQTransformer(in_channels=1)
-    checkpoint = torch.load(args.eqt_path)
+    # Load trained model from path
+    model = MODELS[args.model](in_channels=1)
+    checkpoint = torch.load(args.model_path)
     model.load_state_dict(checkpoint["state_dict"])
 
-    # Load trained EQTransformer+SWAG
+    # Load trained Model+SWAG
     swag_model = swag.posteriors.SWAG(
-        EQTransformer,
+        MODELS[args.model],
         no_cov_mat=True,
         max_num_models=20,
         in_channels=1,
