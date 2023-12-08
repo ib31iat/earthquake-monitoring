@@ -80,7 +80,7 @@ def main():
     print("Start evaluation.")
     data = data.test()
     print("Preprocess for evaluation.")
-    data_loader = preprocess(data)
+    data_loader = preprocess(data, batch_size=512, num_workers=24)
 
     print("Build ground truth.")
     true = build_ground_truth(data)
