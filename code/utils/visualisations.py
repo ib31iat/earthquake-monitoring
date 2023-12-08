@@ -25,14 +25,23 @@ def residual_histogram(metrics, axs=None, **kwargs):
     p_indices = np.abs(p_res) < 1
     s_indices = np.abs(s_res) < 1
 
+    axs[0, 0].set_label("P Residuals")
     axs[0, 0].hist(p_res[p_indices], bins=50)
+    axs[1, 0].set_label("S Residuals")
     axs[1, 0].hist(s_res[s_indices], bins=50)
 
+    axs[0, 1].set_xlabel("SNR")
+    axs[0, 1].set_ylabel("P Residuals")
+    axs[0, 1].yaxis.set_label_position("right")
     axs[0, 1].set_xscale("log")
-    axs[1, 1].set_xscale("log")
     axs[0, 1].set_yscale("log")
-    axs[1, 1].set_yscale("log")
     axs[0, 1].scatter(snr[p_indices][::100], p_res[p_indices][::100])
+
+    axs[1, 1].set_xlabel("SNR")
+    axs[1, 1].set_ylabel("S Residuals")
+    axs[1, 1].yaxis.set_label_position("right")
+    axs[1, 1].set_xscale("log")
+    axs[1, 1].set_yscale("log")
     axs[1, 1].scatter(snr[s_indices][::100], s_res[s_indices][::100])
 
 
@@ -44,10 +53,10 @@ def residual_ecdf(metrics, axs=None, **kwargs):
     p_indices = np.abs(p_res) < 1
     s_indices = np.abs(s_res) < 1
 
-    axs[0].set_ylabel("P Picks ECDF")
+    axs[0].set_ylabel("P Residuals ECDF")
     axs[0].ecdf(np.abs(p_res[p_indices]))
 
-    axs[1].set_ylabel("S Picks ECDF")
+    axs[1].set_ylabel("S Residuals ECDF")
     axs[1].ecdf(np.abs(s_res[s_indices]))
 
 
@@ -97,25 +106,26 @@ def detection_treshold_vs_det_recall(*args, **kwargs):
 def detection_treshold_vs_f1(*args, **kwargs):
     detection_treshold_vs_metric(*args, metric_key="det_f1_score", **kwargs)
 
+
 def model_comparison(metrics, axs=None, **kwargs):
     classifciation_comp = {
-        "Precision": 'det_precision_score',
-        "Recall": 'det_f1_score',
-        "F1": 'det_f1_score',
+        "Precision": "det_precision_score",
+        "Recall": "det_f1_score",
+        "F1": "det_f1_score",
     }
     regression_comp = {
-        "Mean P": 'p_mu',
-        "Mean S": 's_mu',
-        "std P": 'p_std',
-        "std S": 's_std'
+        "Mean P": "p_mu",
+        "Mean S": "s_mu",
+        "std P": "p_std",
+        "std S": "s_std",
     }
 
     classification_metrics = {}
     regression_metrics = {}
 
     tasks = (
-        (classifciation_comp, classification_metrics, 'Classification'),
-        (regression_comp, regression_metrics, 'Regression')
+        (classifciation_comp, classification_metrics, "Classification"),
+        (regression_comp, regression_metrics, "Regression"),
     )
 
     for k, v in metrics.items():
@@ -127,9 +137,9 @@ def model_comparison(metrics, axs=None, **kwargs):
 
     normalizer = [max_mean, max_mean, max_std, max_std]
 
-    for k,v  in regression_metrics.items():
+    for k, v in regression_metrics.items():
         for idx in range(len(regression_metrics[k])):
-            regression_metrics[k][idx] = v[idx]/normalizer[idx]
+            regression_metrics[k][idx] = v[idx] / normalizer[idx]
 
     width = 0.25  # the width of the bars
     for idx, (comp, values, name) in enumerate(tasks):
@@ -147,5 +157,5 @@ def model_comparison(metrics, axs=None, **kwargs):
         axs[idx].set_xticks(x + width, comp.keys())
 
         if idx == 0:
-            axs[idx].set_ylim(0.98,1)
-            axs[idx].legend(ncols=3, bbox_to_anchor=(.52, -.1))
+            axs[idx].set_ylim(0.98, 1)
+            axs[idx].legend(ncols=3, bbox_to_anchor=(0.52, -0.1))
