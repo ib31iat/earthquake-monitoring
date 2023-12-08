@@ -58,20 +58,7 @@ def get_eval_augmentations():
     ]
 
 
-def run_eval(
-    model,
-    data: WaveformDataset,
-    batch_size=100,
-    num_workers=0,
-    detection_threshold: float = 0.5,
-):
-    """Evaluate model on data and return a bunch of resulting metrics.
-
-    Keys in result:
-    - det_precision_score
-    -"""
-    print("Start evaluation.")
-    print("Load data.")
+def preprocess(data, batch_size, num_workers):
     data_generator = sbg.GenericGenerator(data)
     data_generator.add_augmentations(get_eval_augmentations())
     data_loader = DataLoader(
@@ -81,13 +68,15 @@ def run_eval(
         num_workers=num_workers,
         worker_init_fn=worker_seeding,
     )
+    return data_loader
 
-    det_true = []
-    p_true = []
-    s_true = []
-    snr = []
 
-    print("Build ground truth.")
+def build_ground_truth(data):
+    det_true = list()
+    p_true = list()
+    s_true = list()
+    snr = list()
+
     for idx in range(len(data)):
         _, metadata = data.get_sample(idx)
         det = metadata["trace_category"] == "earthquake_local"
@@ -110,13 +99,7 @@ def run_eval(
     s_true = np.array(s_true)
     snr = np.array(snr)
 
-    print("Calculate predictions.")
-    predictions = predict(model, data_loader)["predictions"]
-    det_pred = predictions[:, 0]
-    p_pred = predictions[:, 1]
-    s_pred = predictions[:, 2]
-
-    return ((det_true, p_true, s_true), (det_pred, p_pred, s_pred), snr)
+    return {"det_true": det_true, "p_true": p_true, "s_true": s_true, "snr": snr}
 
 
 def calculate_metrics(true, pred, snr, detection_threshold):

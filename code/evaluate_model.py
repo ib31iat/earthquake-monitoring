@@ -9,8 +9,8 @@ import torch
 import swag
 
 from seisbench.data import WaveformDataset
-from utils.evaluation import run_eval, calculate_metrics
-from utils.utils import MODELS
+from utils.evaluation import preprocess, build_ground_truth, calculate_metrics
+from utils.utils import MODELS, predict
 
 
 def main():
@@ -77,24 +77,43 @@ def main():
     checkpoint = torch.load(args.swag_path)
     swag_model.load_state_dict(checkpoint["state_dict"], strict=False)
 
-    true, pred, snr = run_eval(model, data.test(), batch_size=512, num_workers=24)
+    print("Start evaluation.")
+    data = data.test()
+    print("Preprocess for evaluation.")
+    data_loader = preprocess(data)
+
+    print("Build ground truth.")
+    true = build_ground_truth(data)
+    snr = true["snr"]
+    true = (true["det_true"], true["p_true"], true["s_true"])
+
+    print("Calculate predictions.")
+    predictions = predict(model, data_loader)["predictions"]
+    pred = predictions[:, 0], predictions[:, 1], predictions[:, 2]
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    print("Save ground truth and predictions.")
     for obj, desc in [(true, "true"), (pred, "pred"), (snr, "snr")]:
         with open(output_dir / f"{args.model}_{desc}.pickle", "wb") as f:
             pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
 
+    print("Calculate performance metrics.")
     metrics = calculate_metrics(true, pred, snr, 0.5)
 
+    print("Save performance metrics.")
     with open(output_dir / f"{args.model}_metrics.pickle", "wb") as f:
         pickle.dump(metrics, f, pickle.HIGHEST_PROTOCOL)
 
     def metrics_gen():
-        for _ in range(args.no_of_swag_evaluations):
+        for i in range(args.no_of_swag_evaluations):
             swag_model.sample(1.0)
-            true, pred, snr = run_eval(swag_model, data.test(), batch_size=512, num_workers=24)
+            print(f"Calculate predictions (SWAG) #{i:>2}.")
+            predictions = predict(swag_model, data_loader)["predictions"]
+            pred = predictions[:, 0], predictions[:, 1], predictions[:, 2]
+
+            print(f"Calculate performance metrics (SWAG) #{i:>2}.")
             metrics = calculate_metrics(true, pred, snr, 0.5)
             yield metrics
 
