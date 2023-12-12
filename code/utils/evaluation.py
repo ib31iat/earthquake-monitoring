@@ -98,6 +98,8 @@ def run_eval(
             local_snr = float(
                 local_snr.replace("[", "").replace("]", "").strip().split(" ")[0]
             )
+        elif isinstance(local_snr, float):
+            local_snr = local_snr
         else:
             local_snr = 0.0
 
