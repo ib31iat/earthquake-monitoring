@@ -291,8 +291,8 @@ def preprocess(data, batch_size, num_workers, window_len):
     dev_generator = sbg.GenericGenerator(dev)
     test_generator = sbg.GenericGenerator(test)
 
-    train_generator.add_augmentations(get_train_augmentations(rotate_array=True, window_len=))
-    dev_generator.add_augmentations(get_val_augmentations(window_len=))
+    train_generator.add_augmentations(get_train_augmentations(rotate_array=True, window_len=window_len))
+    dev_generator.add_augmentations(get_val_augmentations(window_len=window_len))
     test_generator.add_augmentations(get_eval_augmentations())
 
     train_loader = DataLoader(
