@@ -144,7 +144,7 @@ def predict(model, dataloader):
     return {"predictions": np.vstack(predictions), "targets": np.concatenate(targets)}
 
 
-def preprocess(data, batch_size, num_workers):
+def preprocess(data, batch_size, num_workers, window_len):
     """Takes in a WaveformDataset and performs preprocessing on it.  Returns"""
     ################################################################################
     # Configure augmentations; basically: https://github.com/seisbench/pick-benchmark/blob/74ba1965b1dd5e770a8358ed83e339a01460e86b/benchmark/models.py#L440
@@ -168,13 +168,20 @@ def preprocess(data, batch_size, num_workers):
         "trace_Sn_arrival_sample": "S",
     }
 
-    def get_joint_augmentations(sample_boundaries, sigma):
+    def get_joint_augmentations(sample_boundaries, sigma, window_len):
         p_phases = [key for key, val in phase_dict.items() if val == "P"]
         s_phases = [key for key, val in phase_dict.items() if val == "S"]
 
         detection_labeller = sbg.DetectionLabeller(
             p_phases, s_phases=s_phases, key=("X", "detections")
         )
+
+        if window_len == 6000:
+            samples_before = 3000
+            around_sample_len = 12000
+        else:
+            samples_before = 3000
+            around_sample_len = 12000
 
         block1 = [
             # In 2/3 of the cases, select windows around picks, to reduce amount of noise traces in training.
@@ -184,8 +191,8 @@ def preprocess(data, batch_size, num_workers):
                 [
                     sbg.WindowAroundSample(
                         list(phase_dict.keys()),
-                        samples_before=6000,
-                        windowlen=12000,
+                        samples_before=samples_before,
+                        windowlen=around_sample_len,
                         selection="random",
                         strategy="variable",
                     ),
@@ -196,7 +203,7 @@ def preprocess(data, batch_size, num_workers):
             sbg.RandomWindow(
                 low=sample_boundaries[0],
                 high=sample_boundaries[1],
-                windowlen=6000,
+                windowlen=window_len,
                 strategy="pad",
             ),
             sbg.ProbabilisticLabeller(label_columns=phase_dict, sigma=sigma, dim=0),
@@ -214,7 +221,7 @@ def preprocess(data, batch_size, num_workers):
 
         return block1, block2
 
-    def get_train_augmentations(rotate_array=False):
+    def get_train_augmentations(rotate_array=False, window_len = 6000):
         if rotate_array:
             rotation_block = [
                 sbg.OneOf(
@@ -247,14 +254,14 @@ def preprocess(data, batch_size, num_workers):
         ]
 
         block1, block2 = get_joint_augmentations(
-            sample_boundaries=(None, None), sigma=20
+            sample_boundaries=(None, None), sigma=20, window_len=window_len
         )
 
         return block1 + augmentation_block + block2
 
-    def get_val_augmentations():
+    def get_val_augmentations(window_len=6000):
         block1, block2 = get_joint_augmentations(
-            sample_boundaries=(None, None), sigma=20
+            sample_boundaries=(None, None), sigma=20, window_len=window_len
         )
 
         return block1 + block2
@@ -284,8 +291,8 @@ def preprocess(data, batch_size, num_workers):
     dev_generator = sbg.GenericGenerator(dev)
     test_generator = sbg.GenericGenerator(test)
 
-    train_generator.add_augmentations(get_train_augmentations(rotate_array=True))
-    dev_generator.add_augmentations(get_val_augmentations())
+    train_generator.add_augmentations(get_train_augmentations(rotate_array=True, window_len=))
+    dev_generator.add_augmentations(get_val_augmentations(window_len=))
     test_generator.add_augmentations(get_eval_augmentations())
 
     train_loader = DataLoader(

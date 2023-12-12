@@ -221,12 +221,18 @@ except KeyError:
 
 print(f"Loading dataset {args.dataset} from {args.dataset_path}")
 data = WaveformDataset(args.dataset_path)
+if args.dataset == 'Bedretto':
+    data.filter(data['trace_ntps'] == 20001)
 
 print("Preprocessing data")
-train_loader, dev_loader, _ = preprocess(data, args.batch_size, args.num_workers)
+if args.dataset == 'Bedretto':
+    model_in_samples = 20000
+else:
+    model_in_samples = 6000
+train_loader, dev_loader, _ = preprocess(data, args.batch_size, args.num_workers, model_in_samples)
 
 print("Preparing model")
-model = model_cfg(in_channels=1)
+model = model_cfg(in_channels=1, in_samples=model_in_samples)
 model.to(args.device)
 if args.verbose:
     print(model)
@@ -244,6 +250,7 @@ if args.swa:
         no_cov_mat=args.no_cov_mat,
         max_num_models=args.max_num_models,
         in_channels=1,
+        in_samples=model_in_samples
     )
     swag_model.to(args.device)
     swa_n = 0
