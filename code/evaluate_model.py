@@ -12,6 +12,7 @@ from seisbench.data import WaveformDataset
 from utils.evaluation import run_eval, calculate_metrics
 from utils.utils import MODELS
 
+# TODO: does not work for bedretto data
 
 def main():
     parser = argparse.ArgumentParser(description="Model Evaluation")
@@ -57,6 +58,15 @@ def main():
         required=True,
         help="output directory (default None)",
     )
+    # TODO: atm a swag model needs to be specified even if mc_dropout is used
+    parser.add_argument(
+        "--uncertainty-method",
+        type=str,
+        default='swag',
+        required=True,
+        choices=['swag', 'mc_dropout'],
+        help="Decide wether to use MC Dropout or Swag for uncertainty evaluation."
+    )
     args = parser.parse_args()
 
     # Load (entire) dataset
@@ -93,10 +103,26 @@ def main():
 
     def metrics_gen():
         for _ in range(args.no_of_swag_evaluations):
-            swag_model.sample(1.0)
-            true, pred, snr = run_eval(swag_model, data.test(), batch_size=512, num_workers=24)
-            metrics = calculate_metrics(true, pred, snr, 0.5)
-            yield metrics
+            if args.uncertainty_method == 'swag':
+                swag_model.sample(1.0)
+                true, pred, snr = run_eval(swag_model, data.test(), batch_size=512, num_workers=24)
+                metrics = calculate_metrics(true, pred, snr, 0.5)
+                yield metrics
+            elif args.uncertainty_method == 'mc_dropout':
+                true, pred, snr = run_eval(model, data.test(), batch_size=512, num_workers=24)
+                metrics = calculate_metrics(true, pred, snr, 0.5)
+                yield metrics
+            else:
+                print('Chosen uncertainty method is not valid!')
+                exit()
+
+    # Only have evalution of uncertainty left
+    # In case of mc_droput, set dropout to training
+    if args.uncertainty_method == 'mc_dropout':
+        model.eval()
+        for m in model.modules():
+            if m.__class__.__name__.startswith('Dropout'):
+                m.train()
 
     df = pd.DataFrame(metrics_gen())
     with open(output_dir / f"{args.model}_swag_metrics.pickle", "wb") as f:
