@@ -142,7 +142,7 @@ def plot_snr_distribution(ax, snr, y, y_indices):
         snr[y_indices][::sample_interval],
         y[y_indices][::sample_interval],
         marker='x',
-        color='tab:blue',
+        color=plt.cm.autumn_r(0.5),
         linewidths=1,
     )
 
@@ -153,7 +153,7 @@ def plot_histogram(ax, y, y_indices, n_bins):
         bins=n_bins,
     )
     for i in range(len(patches)):
-        patches[i].set_facecolor(plt.cm.cool(n[i]/max(n)))
+        patches[i].set_facecolor(plt.cm.autumn_r(n[i]/max(n)))
 
 def residual_histogram(metrics, subtitle=None, **kwargs):
     fig, axs = framework(2,2, 'Resdidual Histogram', subtitle, title_x=-.08)
@@ -179,8 +179,8 @@ def residual_histogram(metrics, subtitle=None, **kwargs):
     axs[0,1].sharex(axs[1,1])
     axs[0,1].sharey(axs[1,1])
 
-    framework_set_row_description(axs[0,1], 'P-Waves')
-    framework_set_row_description(axs[1,1], 'S-Waves')
+    framework_set_row_description(axs[0,1], f'P-Waves (hidden: {1-sum(p_indices)/len(p_res):.2f})')
+    framework_set_row_description(axs[1,1], f'S-Waves (hidden: {1-sum(s_indices)/len(s_res):.2f})')
 
     return fig
 
@@ -188,7 +188,7 @@ def plot_ecdf(ax, y, y_indices):
     ax.ecdf(np.abs(y[y_indices]))
 
 def residual_ecdf(metrics, subtitle=None, **kwargs):
-    fig, ax = framework(ncols=1, nrows=1, title='Residual ECDF', subtitle=subtitle, title_x=-.03, y_size_factor=.5, y_adjustment=0.15)
+    fig, ax = framework(ncols=1, nrows=1, title='Residual ECDF', subtitle=subtitle, title_x=-.03, y_size_factor=.5, y_adjustment=0.1)
     # Put P/S picks on seconds scale
     p_res = metrics["p_res"] / 100
     s_res = metrics["s_res"] / 100
@@ -197,8 +197,8 @@ def residual_ecdf(metrics, subtitle=None, **kwargs):
     s_indices = np.abs(s_res) < 1
 
     ax.set_ylim(0,1.1)
-    ax.ecdf(np.abs(p_res[p_indices]), label='P Residuals')
-    ax.ecdf(np.abs(s_res[s_indices]), label='S Residuals')
+    ax.ecdf(np.abs(p_res[p_indices]), label=f'P Residuals (hidden: {1-sum(p_indices)/len(p_res):.2f})')
+    ax.ecdf(np.abs(s_res[s_indices]), label=f'S Residuals (hidden: {1-sum(s_indices)/len(s_res):.2f})')
 
     ax.legend(loc='lower right')
 
