@@ -125,7 +125,7 @@ def main():
                 m.train()
 
     df = pd.DataFrame(metrics_gen())
-    with open(output_dir / f"{args.model}_swag_metrics_dropout.pickle", "wb") as f:
+    with open(output_dir / f"{args.model}_{args.uncertainty_method}_metrics.pickle", "wb") as f:
         pickle.dump(df, f, pickle.HIGHEST_PROTOCOL)
 
 
