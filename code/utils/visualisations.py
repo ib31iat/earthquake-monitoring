@@ -42,9 +42,7 @@ def set_framework_title(ax, title=None, subtitle=None, title_x=0, y_adjustment=0
         )
 
 def framework_remove_borders(ax):
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_visible(False)
+    ax.spines[['top', 'right', 'left']].set_visible(False)
     ax.spines['bottom'].set_color('.2')
     ax.tick_params(left = False, which='both')
     ax.tick_params(bottom=True, which='major')
@@ -114,14 +112,25 @@ def framework(ncols=1, nrows=1, title=None, subtitle=None, title_x=0, grid=True,
 
     return fig, axs
 
-def confusion_matrix(metrics, subtitle=None, grid=False, **kwargs):
-    fig, ax = framework(1,1, 'Detection Confusion Matrix', subtitle, title_x=-.25 ,grid=grid)
+def confusion_matrix(metrics, subtitle=None, grid=False, cmap='YlGn', **kwargs):
+    # Color maps: https://matplotlib.org/stable/users/explain/colors/colormaps.html
+    fig, ax = framework(1,1, 'Detection Confusion Matrix', subtitle, title_x=-.25, y_adjustment=.16,grid=grid)
+
+    # Remove x-ticks
+    ax.tick_params(bottom=False, which='major')
+
+    # Readd spines and change color
+    ax.spines[:].set_visible(True)
+    ax.spines[:].set_color('.6')
+
+
     confusion_matrix = metrics["det_confusion_matrix"]
     disp = ConfusionMatrixDisplay(
         confusion_matrix=confusion_matrix,
         display_labels=np.array(["Noise", "Earthquake"]),
     )
-    disp.plot(ax=ax, **kwargs)
+    disp.plot(ax=ax, cmap=cmap, **kwargs)
+    return fig
 
 def plot_snr_distribution(ax, snr, y, y_indices):
     sample_interval = 100
@@ -173,6 +182,8 @@ def residual_histogram(metrics, subtitle=None, **kwargs):
     framework_set_row_description(axs[0,1], 'P-Waves')
     framework_set_row_description(axs[1,1], 'S-Waves')
 
+    return fig
+
 def plot_ecdf(ax, y, y_indices):
     ax.ecdf(np.abs(y[y_indices]))
 
@@ -191,15 +202,20 @@ def residual_ecdf(metrics, subtitle=None, **kwargs):
 
     ax.legend(loc='lower right')
 
+    return fig
+
 def roc_plot(metrics, subtitle=None, **kwargs):
-    fig, ax = framework(ncols=1, nrows=1, title='Residual ECDF', subtitle=subtitle, title_x=-.03, y_size_factor=14/6, y_adjustment=0.19, subtitle_adjustment=0.06)
+    fig, ax = framework(ncols=1, nrows=1, title='ROC Curve', subtitle=subtitle, title_x=-.03, y_size_factor=14/6, y_adjustment=0.19, subtitle_adjustment=0.06)
     fpr, tpr, threshold = metrics["det_roc"]
     roc_auc = auc(fpr, tpr)
-    ax.plot(fpr, tpr, "b", label=f"AUC = {roc_auc:<.2f}")
+    ax.plot(fpr, tpr, label=f"AUC = {roc_auc:<.2f}")
     ax.set_xlim([0, 1])
     ax.set_ylim([0, 1])
     framework_label_x_axis(ax, "False Positive Rate")
     framework_label_y_axis(ax, "True Positive Rate", x=-.03, y_adjustment=0.07)
+    ax.legend(loc='center right')
+
+    return fig
 
 
 desc = {
@@ -225,7 +241,7 @@ def detection_treshold_vs_metric(true, pred, snr, metric_key, ax=None):
     ax.plot(*zip(*values()))
 
 
-def detection_treshold_vs_prec(*args, **kwargs):
+def detection_treshold_vs_prec(metrics, **kwargs):
     detection_treshold_vs_metric(*args, metric_key="det_precision_score", **kwargs)
 
 
