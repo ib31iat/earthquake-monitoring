@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import ConfusionMatrixDisplay, auc
 from .evaluation import calculate_metrics
+import matplotlib.ticker as mticker
 
 """Module for defining various visualisations.
 
@@ -221,7 +222,7 @@ def roc_plot(metrics, subtitle=None, **kwargs):
 desc = {
     "det_precision_score": "Precision",
     "det_recall_score": "Recall",
-    "det_f1_score": "F1",
+    "det_f1_score": "F1 Score",
 }
 
 
@@ -233,24 +234,34 @@ def detection_treshold_vs_metric(true, pred, snr, metric_key, ax=None):
                 calculate_metrics(true, pred, snr, det_treshold)[metric_key],
             )
 
-    ax.set_xlabel("Detection Treshold")
-    ax.set_ylabel(desc[metric_key])
+    framework_label_x_axis(ax, "Detection Threshold")
+    framework_label_y_axis(ax, desc[metric_key], x=-.04, y_adjustment=0.03)
+
     ax.set_yscale("log")
+    ax.yaxis.grid(linewidth=1, color='w', which='both')
+    ax.yaxis.set_minor_formatter(mticker.ScalarFormatter())
+    ax.yaxis.set_major_formatter(mticker.ScalarFormatter())
     ax.set_xlim(0, 1)
     ax.set_ylim(top=1)
     ax.plot(*zip(*values()))
 
 
-def detection_treshold_vs_prec(metrics, **kwargs):
-    detection_treshold_vs_metric(*args, metric_key="det_precision_score", **kwargs)
+def detection_treshold_vs_prec(true, pred, snr, subtitle=None, **kwargs):
+    fig, ax = framework(ncols=1, nrows=1, title=f'Detection Threshold vs. Precision', subtitle=subtitle, title_x=-.04, y_adjustment=0.12)
+    detection_treshold_vs_metric(true, pred, snr, ax=ax, metric_key="det_precision_score", **kwargs)
+    return fig
 
 
-def detection_treshold_vs_det_recall(*args, **kwargs):
-    detection_treshold_vs_metric(*args, metric_key="det_recall_score", **kwargs)
+def detection_treshold_vs_det_recall(true, pred, snr, subtitle=None, **kwargs):
+    fig, ax = framework(ncols=1, nrows=1, title=f'Detection Threshold vs. Recall', subtitle=subtitle, title_x=-.04, y_adjustment=0.12)
+    detection_treshold_vs_metric(true, pred, snr, ax=ax, metric_key="det_recall_score", **kwargs)
+    return fig
 
 
-def detection_treshold_vs_f1(*args, **kwargs):
-    detection_treshold_vs_metric(*args, metric_key="det_f1_score", **kwargs)
+def detection_treshold_vs_f1(true, pred, snr, subtitle=None, **kwargs):
+    fig, ax = framework(ncols=1, nrows=1, title=f'Detection Threshold vs. F1 Score', subtitle=subtitle, title_x=-.04, y_adjustment=0.12)
+    detection_treshold_vs_metric(true, pred, snr, ax=ax, metric_key="det_f1_score", **kwargs)
+    return fig
 
 
 def model_comparison(metrics, axs=None, **kwargs):
