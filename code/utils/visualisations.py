@@ -264,55 +264,69 @@ def detection_treshold_vs_f1(true, pred, snr, subtitle=None, **kwargs):
     return fig
 
 
-def model_comparison(metrics, axs=None, **kwargs):
+def model_comparison(metrics, subtitle=None, **kwargs):
+    fig, axs = framework(ncols=3, nrows=1, title=f'EQT Model Comparison', subtitle=subtitle, title_x=-.12, y_adjustment=.05)
+
+    # Define colors
+    colors = ['lightsteelblue', 'cornflowerblue', 'royalblue']
+
+    # Build metrics
     classifciation_comp = {
         "Precision": "det_precision_score",
         "Recall": "det_f1_score",
         "F1": "det_f1_score",
     }
-    regression_comp = {
-        "Mean P": "p_mu",
-        "Mean S": "s_mu",
-        "std P": "p_std",
-        "std S": "s_std",
+    regression_mean = {
+        "P-Wave": "p_mu",
+        "S-Wave": "s_mu",
+    }
+
+    regression_std = {
+        "P-Wave": "p_std",
+        "S-Wave": "s_std",
     }
 
     classification_metrics = {}
-    regression_metrics = {}
+    regression_mean_metrics = {}
+    regression_std_metrics = {}
 
     tasks = (
         (classifciation_comp, classification_metrics, "Classification"),
-        (regression_comp, regression_metrics, "Regression"),
+        (regression_mean, regression_mean_metrics, "Regression Mean"),
+        (regression_std, regression_std_metrics, "Regression Std"),
     )
 
     for k, v in metrics.items():
         for c, m, _ in tasks:
             m[k] = [abs(v[key]) for key in c.values()]
 
-    max_mean = max([max(v[0], v[1]) for v in regression_metrics.values()])
-    max_std = max([max(v[2], v[3]) for v in regression_metrics.values()])
+    max_mean = max([max(v[0], v[1]) for v in regression_mean_metrics.values()])
+    max_std = max([max(v[0], v[1]) for v in regression_std_metrics.values()])
 
-    normalizer = [max_mean, max_mean, max_std, max_std]
+    for k, v in regression_mean_metrics.items():
+        regression_mean_metrics[k] = v/max_mean
 
-    for k, v in regression_metrics.items():
-        for idx in range(len(regression_metrics[k])):
-            regression_metrics[k][idx] = v[idx] / normalizer[idx]
+    for k, v in regression_std_metrics.items():
+        regression_std_metrics[k] = v/max_std
 
     width = 0.25  # the width of the bars
     for idx, (comp, values, name) in enumerate(tasks):
         x = np.arange(len(comp.keys()))  # the label locations
         multiplier = 0
 
-        for attribute, measurement in values.items():
+        for i, (attribute, measurement) in enumerate(values.items()):
             offset = width * multiplier
-            rects = axs[idx].bar(x + offset, measurement, width, label=attribute)
-            # axs[0].bar_label(rects, padding=3)
+            axs[idx].bar(x + offset, measurement, width, label=attribute, color=colors[i])
             multiplier += 1
 
         # Add some text for labels, title and custom x-axis tick labels, etc.
-        axs[idx].set_title(name)
+        axs[idx].set_title(name, color='.2')
         axs[idx].set_xticks(x + width, comp.keys())
 
         if idx == 0:
-            axs[idx].set_ylim(0.98, 1)
-            axs[idx].legend(ncols=3, bbox_to_anchor=(0.52, -0.1))
+            axs[idx].set_ylim(0.98, 1.001)
+
+        if idx == 1:
+            axs[idx].legend(ncols=3, bbox_to_anchor=(1.04, 1.18), frameon=False)
+
+    return fig
