@@ -4,6 +4,7 @@ import random as rnd
 from sklearn.metrics import ConfusionMatrixDisplay, auc
 from .evaluation import calculate_metrics
 import matplotlib.ticker as mticker
+from matplotlib.lines import Line2D
 
 """Module for defining various visualisations.
 
@@ -345,7 +346,7 @@ eq_label_dict = {
     'noise': 'Noise',
 }
 
-def waveform_plotter(ax, data, p=True, s=True, hz=1e5):
+def waveform_plotter(ax, data, p=True, s=True):
     # Set y-lim
     ax.set_ylim(-1.1,1.1)
 
@@ -353,7 +354,7 @@ def waveform_plotter(ax, data, p=True, s=True, hz=1e5):
     sample = data.get_sample(idx)
     sample_x = sample[0][0].T
     sample_meta = sample[1]
-    ax.plot(sample_x/max(np.abs(sample_x)), label='HHZ', color='.5', linewidth=.5)
+    ax.plot(sample_x/max(np.abs(sample_x)), color='.5', linewidth=.5)
     if p and sample_meta['trace_p_arrival_sample'] is not None:
         ax.vlines(x=sample_meta['trace_p_arrival_sample'], ymin=-1, ymax=1, color='firebrick')
     if s and sample_meta['trace_s_arrival_sample'] is not None:
@@ -375,8 +376,8 @@ def waveform_plotter(ax, data, p=True, s=True, hz=1e5):
     label = sample_meta['trace_category']
     if label != 'noise':
         additional_info = f"SNR: {round(float(snr), 2)}, Dist: {round(sample_meta['source_distance_km'], 1)}, Mag: {round(sample_meta['source_magnitude'], 1)}"
+        ax.text(s=additional_info, y=1.2, color='.4', **title_args)
 
-    t = ax.text(s=additional_info, y=1.2, color='.4', **title_args)
     ax.text(s=f'Type: {eq_label_dict[label]} (HHZ)', y=1.4, color='.2', **title_args)
 
     # Adjust x axis labels
@@ -386,7 +387,7 @@ def waveform_plotter(ax, data, p=True, s=True, hz=1e5):
     ax.set_xlim(-400, 6400)
 
 def plot_waveforms(data_set, nrows=1, ncols=1, **kwargs):
-    fig, axs = framework(ncols=ncols, nrows=nrows, fig_creation_args={'sharex': 'col',  'sharey': 'row'})
+    fig, axs = framework(title='Stead Wavform Examples', ncols=ncols, nrows=nrows, fig_creation_args={'sharex': 'col',  'sharey': 'row'}, y_adjustment=-1)
 
     if nrows > 1 and ncols > 1:
         for i in range(nrows):
@@ -400,5 +401,17 @@ def plot_waveforms(data_set, nrows=1, ncols=1, **kwargs):
             waveform_plotter(axs[i], data_set)
 
     fig.tight_layout()
+
+    fig.legend(
+        handles=[
+             Line2D([0], [0],color='.5', label='HHZ Component'),
+             Line2D([0], [0],color='firebrick', label='P Wave Onset'),
+             Line2D([0], [0],color='limegreen', label='S Wave Onset'),
+        ],
+        ncols=3,
+        bbox_to_anchor=(.68, .83),
+        frameon=False
+    )
+
     return fig
 
