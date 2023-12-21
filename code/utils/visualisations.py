@@ -227,7 +227,17 @@ def roc_plot(metrics, subtitle=None, **kwargs):
     ax.set_ylim([0, 1])
     framework_label_x_axis(ax, "False Positive Rate")
     framework_label_y_axis(ax, "True Positive Rate", x=-.03, y_adjustment=0.07)
-    ax.legend(loc='center right')
+    ax.legend(loc='best')
+
+    # Zoom
+    x1, x2, y1, y2 = 0, .05, 0.95, 1
+    axins = ax.inset_axes(
+        [0.3, 0.3, 0.55, 0.55],
+        xlim=(x1, x2), ylim=(y1, y2)
+    )
+    axins.plot(fpr, tpr, color=COLORS[2])
+    axins.grid()
+    ax.indicate_inset_zoom(axins, edgecolor="black")
 
     return fig
 
