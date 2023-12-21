@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import random as rnd
 from sklearn.metrics import ConfusionMatrixDisplay, auc
 from .evaluation import calculate_metrics
 import matplotlib.ticker as mticker
@@ -67,6 +68,14 @@ def framework_transform_y_labels(ax):
     ax.set_yticks(ticks)
     ax.set_yticklabels(labels)
 
+def framework_transform_x_labels_to_s(ax, hz=None):
+    ax.tick_params(axis='y', labelcolor='.2')
+    ticks = ax.get_xticks()
+    labels = [f'{x/hz} s'  for x in ticks[:-1]] + ['']
+
+    ax.set_xticks(ticks)
+    ax.set_xticklabels(labels)
+
 def framework_label_y_axis(ax, text, x=0, y_adjustment=0):
     ax.text(
         y=1.1-y_adjustment,
@@ -92,12 +101,12 @@ def framework_label_x_axis(ax, text):
         color='.2'
     )
 
-def framework(ncols=1, nrows=1, title=None, subtitle=None, title_x=0, grid=True, y_size_factor=1, x_size_factor=1, y_adjustment=0, subtitle_adjustment=0):
+def framework(ncols=1, nrows=1, title=None, subtitle=None, title_x=0, grid=True, y_size_factor=1, x_size_factor=1, y_adjustment=0, subtitle_adjustment=0, fig_creation_args={}):
     # Background color
     facecolor = '.9'
 
     # Create figure
-    fig, axs = plt.subplots(nrows=nrows, ncols=ncols)
+    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, **fig_creation_args)
 
     # Set size
     fig.set_size_inches(14*x_size_factor,6*y_size_factor)
@@ -330,3 +339,66 @@ def model_comparison(metrics, subtitle=None, **kwargs):
             axs[idx].legend(ncols=3, bbox_to_anchor=(1.04, 1.18), frameon=False)
 
     return fig
+
+eq_label_dict = {
+    'earthquake_local': 'Local Earthquake',
+    'noise': 'Noise',
+}
+
+def waveform_plotter(ax, data, p=True, s=True, hz=1e5):
+    # Set y-lim
+    ax.set_ylim(-1.1,1.1)
+
+    idx = rnd.randint(0, len(data))
+    sample = data.get_sample(idx)
+    sample_x = sample[0][0].T
+    sample_meta = sample[1]
+    ax.plot(sample_x/max(np.abs(sample_x)), label='HHZ', color='.5', linewidth=.5)
+    if p and sample_meta['trace_p_arrival_sample'] is not None:
+        ax.vlines(x=sample_meta['trace_p_arrival_sample'], ymin=-1, ymax=1, color='firebrick')
+    if s and sample_meta['trace_s_arrival_sample'] is not None:
+        ax.vlines(x=sample_meta['trace_s_arrival_sample'], ymin=-1, ymax=1, color='limegreen')
+
+    # Set title
+    if isinstance(sample_meta['trace_snr_db'], str):
+        snr = sample_meta['trace_snr_db'].replace('[', '').replace(']','').strip().split(' ')[0]
+    else:
+        snr = sample_meta['trace_snr_db']
+
+    title_args = {
+        'horizontalalignment': 'left',
+        'verticalalignment': 'top',
+        'transform':  ax.transAxes,
+        'x': 0
+    }
+
+    label = sample_meta['trace_category']
+    if label != 'noise':
+        additional_info = f"SNR: {round(float(snr), 2)}, Dist: {round(sample_meta['source_distance_km'], 1)}, Mag: {round(sample_meta['source_magnitude'], 1)}"
+
+    t = ax.text(s=additional_info, y=1.2, color='.4', **title_args)
+    ax.text(s=f'Type: {eq_label_dict[label]} (HHZ)', y=1.4, color='.2', **title_args)
+
+    # Adjust x axis labels
+    framework_transform_x_labels_to_s(ax, sample_meta['trace_sampling_rate_hz'])
+
+    # Set x lim
+    ax.set_xlim(-400, 6400)
+
+def plot_waveforms(data_set, nrows=1, ncols=1, **kwargs):
+    fig, axs = framework(ncols=ncols, nrows=nrows, fig_creation_args={'sharex': 'col',  'sharey': 'row'})
+
+    if nrows > 1 and ncols > 1:
+        for i in range(nrows):
+            for j in range(ncols):
+                waveform_plotter(axs[i, j], data_set)
+
+    elif nrows == 1 and ncols == 1:
+        waveform_plotter(axs, data_set)
+    else:
+        for i in range(max(nrows, ncols)):
+            waveform_plotter(axs[i], data_set)
+
+    fig.tight_layout()
+    return fig
+
