@@ -8,6 +8,8 @@ import matplotlib.ticker as mticker
 
 Each function should have one required parameter `metrics`, a dictionary as returned by eval in evalutations.py and saved to a pickle file in evaluate_model.py"""
 
+COLORS = ['lightsteelblue', 'cornflowerblue', 'royalblue']
+
 # Define plotting framework
 def set_framework_title(ax, title=None, subtitle=None, title_x=0, y_adjustment=0, subtitle_adjustment=0):
     if subtitle is not None:
@@ -115,7 +117,7 @@ def framework(ncols=1, nrows=1, title=None, subtitle=None, title_x=0, grid=True,
 
 def confusion_matrix(metrics, subtitle=None, grid=False, cmap='YlGn', **kwargs):
     # Color maps: https://matplotlib.org/stable/users/explain/colors/colormaps.html
-    fig, ax = framework(1,1, 'Detection Confusion Matrix', subtitle, title_x=-.25, y_adjustment=.16,grid=grid)
+    fig, ax = framework(1,1, 'Detection Confusion Matrix', subtitle, title_x=-.25, y_adjustment=.16,grid=grid, subtitle_adjustment=.04)
 
     # Remove x-ticks
     ax.tick_params(bottom=False, which='major')
@@ -157,7 +159,7 @@ def plot_histogram(ax, y, y_indices, n_bins):
         patches[i].set_facecolor(plt.cm.autumn_r(n[i]/max(n)))
 
 def residual_histogram(metrics, subtitle=None, **kwargs):
-    fig, axs = framework(2,2, 'Resdidual Histogram', subtitle, title_x=-.08)
+    fig, axs = framework(2,2, 'Resdidual Histogram', subtitle, title_x=-.1, subtitle_adjustment=-0.02)
     p_res = metrics["p_res"] / 100
     s_res = metrics["s_res"] / 100
     snr = metrics["snr"]
@@ -185,11 +187,12 @@ def residual_histogram(metrics, subtitle=None, **kwargs):
 
     return fig
 
-def plot_ecdf(ax, y, y_indices):
-    ax.ecdf(np.abs(y[y_indices]))
+def plot_ecdf(ax, y, y_indices, color):
+    ax.ecdf(np.abs(y[y_indices], color=color))
 
 def residual_ecdf(metrics, subtitle=None, **kwargs):
-    fig, ax = framework(ncols=1, nrows=1, title='Residual ECDF', subtitle=subtitle, title_x=-.03, y_size_factor=.5, y_adjustment=0.1)
+    fig, ax = framework(ncols=1, nrows=1, title='Residual ECDF', subtitle=subtitle, title_x=-.03, y_size_factor=.5, y_adjustment=0.1, subtitle_adjustment=-0.02)
+
     # Put P/S picks on seconds scale
     p_res = metrics["p_res"] / 100
     s_res = metrics["s_res"] / 100
@@ -198,8 +201,8 @@ def residual_ecdf(metrics, subtitle=None, **kwargs):
     s_indices = np.abs(s_res) < 1
 
     ax.set_ylim(0,1.1)
-    ax.ecdf(np.abs(p_res[p_indices]), label=f'P Residuals (hidden: {1-sum(p_indices)/len(p_res):.2f})')
-    ax.ecdf(np.abs(s_res[s_indices]), label=f'S Residuals (hidden: {1-sum(s_indices)/len(s_res):.2f})')
+    ax.ecdf(np.abs(p_res[p_indices]), label=f'P Residuals (hidden: {1-sum(p_indices)/len(p_res):.2f})', color=COLORS[0])
+    ax.ecdf(np.abs(s_res[s_indices]), label=f'S Residuals (hidden: {1-sum(s_indices)/len(s_res):.2f})', color=COLORS[2])
 
     ax.legend(loc='lower right')
 
@@ -209,7 +212,7 @@ def roc_plot(metrics, subtitle=None, **kwargs):
     fig, ax = framework(ncols=1, nrows=1, title='ROC Curve', subtitle=subtitle, title_x=-.03, y_size_factor=14/6, y_adjustment=0.19, subtitle_adjustment=0.06)
     fpr, tpr, threshold = metrics["det_roc"]
     roc_auc = auc(fpr, tpr)
-    ax.plot(fpr, tpr, label=f"AUC = {roc_auc:<.2f}")
+    ax.plot(fpr, tpr, label=f"AUC = {roc_auc:<.2f}", color=COLORS[2])
     ax.set_xlim([0, 1])
     ax.set_ylim([0, 1])
     framework_label_x_axis(ax, "False Positive Rate")
@@ -243,32 +246,29 @@ def detection_treshold_vs_metric(true, pred, snr, metric_key, ax=None):
     ax.yaxis.set_major_formatter(mticker.ScalarFormatter())
     ax.set_xlim(0, 1)
     ax.set_ylim(top=1)
-    ax.plot(*zip(*values()))
+    ax.plot(*zip(*values()), color=COLORS[2])
 
 
 def detection_treshold_vs_prec(true, pred, snr, subtitle=None, **kwargs):
-    fig, ax = framework(ncols=1, nrows=1, title=f'Detection Threshold vs. Precision', subtitle=subtitle, title_x=-.04, y_adjustment=0.12)
+    fig, ax = framework(ncols=1, nrows=1, title=f'Detection Threshold vs. Precision', subtitle=subtitle, title_x=-.04, subtitle_adjustment=0.03, y_adjustment=0.105)
     detection_treshold_vs_metric(true, pred, snr, ax=ax, metric_key="det_precision_score", **kwargs)
     return fig
 
 
 def detection_treshold_vs_det_recall(true, pred, snr, subtitle=None, **kwargs):
-    fig, ax = framework(ncols=1, nrows=1, title=f'Detection Threshold vs. Recall', subtitle=subtitle, title_x=-.04, y_adjustment=0.12)
+    fig, ax = framework(ncols=1, nrows=1, title=f'Detection Threshold vs. Recall', subtitle=subtitle, title_x=-.04, subtitle_adjustment=0.03, y_adjustment=0.105)
     detection_treshold_vs_metric(true, pred, snr, ax=ax, metric_key="det_recall_score", **kwargs)
     return fig
 
 
 def detection_treshold_vs_f1(true, pred, snr, subtitle=None, **kwargs):
-    fig, ax = framework(ncols=1, nrows=1, title=f'Detection Threshold vs. F1 Score', subtitle=subtitle, title_x=-.04, y_adjustment=0.12)
+    fig, ax = framework(ncols=1, nrows=1, title=f'Detection Threshold vs. F1 Score', subtitle=subtitle, title_x=-.04, subtitle_adjustment=0.03, y_adjustment=0.105)
     detection_treshold_vs_metric(true, pred, snr, ax=ax, metric_key="det_f1_score", **kwargs)
     return fig
 
 
 def model_comparison(metrics, subtitle=None, **kwargs):
     fig, axs = framework(ncols=3, nrows=1, title=f'EQT Model Comparison', subtitle=subtitle, title_x=-.12, y_adjustment=.05)
-
-    # Define colors
-    colors = ['lightsteelblue', 'cornflowerblue', 'royalblue']
 
     # Build metrics
     classifciation_comp = {
@@ -316,7 +316,7 @@ def model_comparison(metrics, subtitle=None, **kwargs):
 
         for i, (attribute, measurement) in enumerate(values.items()):
             offset = width * multiplier
-            axs[idx].bar(x + offset, measurement, width, label=attribute, color=colors[i])
+            axs[idx].bar(x + offset, measurement, width, label=attribute, color=COLORS[i])
             multiplier += 1
 
         # Add some text for labels, title and custom x-axis tick labels, etc.
