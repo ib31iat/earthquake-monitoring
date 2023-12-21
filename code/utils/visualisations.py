@@ -10,7 +10,7 @@ from matplotlib.lines import Line2D
 
 Each function should have one required parameter `metrics`, a dictionary as returned by eval in evalutations.py and saved to a pickle file in evaluate_model.py"""
 
-COLORS = ['lightsteelblue', 'cornflowerblue', 'royalblue']
+COLORS = ['lightsteelblue', 'cornflowerblue', 'royalblue', 'steelblue']
 
 # Define plotting framework
 def set_framework_title(ax, title=None, subtitle=None, title_x=0, y_adjustment=0, subtitle_adjustment=0):
@@ -147,9 +147,6 @@ def confusion_matrix(metrics, subtitle=None, grid=False, cmap='YlGn', **kwargs):
 
 def plot_snr_distribution(ax, snr, y, y_indices):
     sample_interval = 100
-    # axs[0, 1].set_xlabel("SNR")
-    # axs[0, 1].set_ylabel("P Residuals")
-    # axs[0, 1].yaxis.set_label_position("right")
     ax.set_xscale("log")
     ax.scatter(
         snr[y_indices][::sample_interval],
@@ -211,8 +208,8 @@ def residual_ecdf(metrics, subtitle=None, **kwargs):
     s_indices = np.abs(s_res) < 1
 
     ax.set_ylim(0,1.1)
-    ax.ecdf(np.abs(p_res[p_indices]), label=f'P Residuals (hidden: {1-sum(p_indices)/len(p_res):.2f})', color=COLORS[0])
-    ax.ecdf(np.abs(s_res[s_indices]), label=f'S Residuals (hidden: {1-sum(s_indices)/len(s_res):.2f})', color=COLORS[2])
+    ax.ecdf(np.abs(p_res[p_indices]), label=f'P Residuals (hidden: {1-sum(p_indices)/len(p_res):.2f})', color=COLORS[3])
+    ax.ecdf(np.abs(s_res[s_indices]), label=f'S Residuals (hidden: {1-sum(s_indices)/len(s_res):.2f})', color=COLORS[1])
 
     ax.legend(loc='lower right')
 
